@@ -18,7 +18,7 @@ import {
   Eye,
   EyeOff,
   Calendar,
-  Hierarchy
+  Network
 } from 'lucide-react';
 import { hrService } from '@/api/hrService';
 import { ROLES } from '@/store/AuthContext';
@@ -336,7 +336,7 @@ export default function EmployeeDirectory() {
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Reporta a (Superior)</label>
                     <div className="relative">
-                      <Hierarchy className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300 pointer-events-none" />
+                      <Network className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300 pointer-events-none" />
                       <select 
                         className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-2xl outline-none focus:bg-white focus:border-primary font-bold text-sm transition-all appearance-none"
                         value={formData.reportsTo}

@@ -11,7 +11,8 @@ import {
   ShieldCheck,
   Zap,
   Crown,
-  Gift
+  Gift,
+  Clock
 } from 'lucide-react';
 import { gamificationService } from '@/api/gamificationService';
 import { useAuth } from '@/store/AuthContext';
