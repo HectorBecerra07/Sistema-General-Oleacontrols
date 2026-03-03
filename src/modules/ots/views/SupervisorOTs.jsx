@@ -481,6 +481,16 @@ export default function SupervisorOTs() {
                           />
                         </div>
                         <div className="space-y-2">
+                          <label className="text-[10px] font-black uppercase text-gray-600">Teléfono de Contacto</label>
+                          <input 
+                            type="text" 
+                            className="w-full px-4 py-2.5 bg-white border rounded-xl outline-none focus:border-primary font-bold text-sm"
+                            value={newOT.contactPhone}
+                            onChange={(e) => setNewOT({...newOT, contactPhone: e.target.value})}
+                            placeholder="5512345678"
+                          />
+                        </div>
+                        <div className="space-y-2">
                           <label className="text-[10px] font-black uppercase text-gray-600">Dirección de OT (Extra)</label>
                           <input 
                             type="text" 

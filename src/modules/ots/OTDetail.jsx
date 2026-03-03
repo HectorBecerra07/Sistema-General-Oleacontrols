@@ -18,7 +18,8 @@ import {
   ArrowRight,
   Store,
   Map as MapIcon,
-  AlertTriangle
+  AlertTriangle,
+  Mail
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
@@ -276,6 +277,13 @@ export default function OTDetail() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
+                    <Mail className="h-4 w-4 text-primary" />
+                    <div>
+                      <p className="text-[10px] font-black text-gray-400 uppercase">Email Facturación</p>
+                      <p className="text-sm font-bold text-gray-900">{ot.clientEmail}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
                     <Smartphone className="h-4 w-4 text-primary" />
                     <div>
                       <p className="text-[10px] font-black text-gray-400 uppercase">Teléfono</p>
@@ -305,6 +313,27 @@ export default function OTDetail() {
                     <div>
                       <p className="text-[10px] font-black text-gray-400 uppercase">Email Contacto</p>
                       <p className="text-sm font-black text-gray-900 lowercase">{ot.contactEmail || 'No especificado'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border border-blue-100">
+                      <Smartphone className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-gray-400 uppercase">Teléfono Contacto</p>
+                      <p className="text-sm font-black text-gray-900">{ot.contactPhone || 'No especificado'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border border-blue-100">
+                      <AlertTriangle className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-gray-400 uppercase">Prioridad</p>
+                      <p className={cn(
+                        "text-sm font-black uppercase",
+                        ot.priority === 'HIGH' ? "text-red-600" : ot.priority === 'MEDIUM' ? "text-amber-600" : "text-blue-600"
+                      )}>{ot.priority}</p>
                     </div>
                   </div>
                   {(ot.otAddress || ot.otReference) && (
