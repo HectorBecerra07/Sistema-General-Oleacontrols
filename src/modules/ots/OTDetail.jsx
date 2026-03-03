@@ -61,6 +61,8 @@ export default function OTDetail() {
   const [refreshExpensesTrigger, setRefreshExpensesTrigger] = useState(0);
   
   const isLead = ot?.leadTechId === user?.id;
+  const isAssistant = ot?.assistantTechs?.some(t => t.id === user?.id);
+  const canInteract = isLead || isAssistant;
 
   const [finishData, setFinishData] = useState({
     pendingTasks: '',
@@ -91,16 +93,19 @@ export default function OTDetail() {
   };
 
   const handleAccept = async () => {
+    if (!canInteract) return;
     await otService.updateStatus(id, 'ACCEPTED', { acceptedAt: new Date().toISOString() });
     loadOT();
   };
 
   const handleStart = async () => {
+    if (!canInteract) return;
     await otService.updateStatus(id, 'IN_PROGRESS', { startedAt: new Date().toISOString() });
     loadOT();
   };
 
   const handleFinish = async () => {
+    if (!isLead) return;
     await otService.updateStatus(id, 'COMPLETED', {
       ...finishData,
       finishedAt: new Date().toISOString()
@@ -143,21 +148,35 @@ export default function OTDetail() {
         </button>
         
         <div className="flex flex-col gap-4">
-                      <div className="flex justify-between items-start">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-black bg-primary/10 text-primary px-2.5 py-1 rounded-lg uppercase tracking-widest">
-                              {ot.id}
-                            </span>
-                            <span className={cn(
-                              "text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest border",
-                              isLead ? "bg-amber-50 text-amber-700 border-amber-100" : "bg-gray-50 text-gray-500 border-gray-100"
-                            )}>
-                              {isLead ? 'Técnico Líder' : 'Apoyo Técnico'}
-                            </span>
-                          </div>
-                          <h2 className="text-2xl font-black text-gray-900 leading-tight mt-2">{ot.title}</h2>
-                        </div>
+          <div className="flex justify-between items-start">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black bg-primary/10 text-primary px-2.5 py-1 rounded-lg uppercase tracking-widest">
+                  {ot.id}
+                </span>
+                <span className={cn(
+                  "text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest border",
+                  isLead ? "bg-amber-50 text-amber-700 border-amber-100" : "bg-blue-50 text-blue-700 border-blue-100"
+                )}>
+                  {isLead ? 'Técnico Líder' : 'Equipo de Apoyo'}
+                </span>
+              </div>
+              <h2 className="text-2xl font-black text-gray-900 leading-tight mt-2">{ot.title}</h2>
+              
+              {/* Equipo Asignado */}
+              <div className="flex flex-wrap gap-2 pt-2">
+                <div className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100">
+                  <div className="h-4 w-4 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-[8px] font-black">L</div>
+                  <span className="text-[9px] font-black text-gray-600 uppercase">{ot.leadTechName}</span>
+                </div>
+                {ot.assistantTechs?.map(tech => (
+                  <div key={tech.id} className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100">
+                    <div className="h-4 w-4 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[8px] font-black">A</div>
+                    <span className="text-[9px] font-black text-gray-600 uppercase">{tech.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           
             <span className={cn(
               "text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest border shadow-sm",
@@ -201,12 +220,19 @@ export default function OTDetail() {
                   <div className="bg-primary/10 p-3 rounded-2xl">
                     <Store className="h-6 w-6 text-primary" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Establecimiento</p>
                     <p className="text-lg font-black text-gray-900 leading-tight">Tienda {ot.storeNumber}: {ot.storeName}</p>
-                    <p className="text-xs font-bold text-gray-500 mt-1 flex items-center gap-1">
-                      <MapPin className="h-3 w-3 text-primary" /> {ot.address}
-                    </p>
+                    <div className="space-y-1 mt-2">
+                      <p className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                        <MapPin className="h-3.5 w-3.5 text-primary" /> {ot.address}
+                      </p>
+                      {ot.secondaryAddress && (
+                        <p className="text-[11px] font-bold text-gray-500 ml-5 italic">
+                          Ref: {ot.secondaryAddress}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -259,7 +285,48 @@ export default function OTDetail() {
                 </div>
               </div>
 
-              <div className="bg-white border rounded-[2rem] p-6 shadow-sm">
+              {/* Campos Extra Section */}
+              <div className="bg-blue-50/30 border border-blue-100 rounded-[2rem] p-6 shadow-sm">
+                <h3 className="text-[10px] font-black text-primary uppercase tracking-widest mb-4">Campos Extra / Adicionales</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border border-blue-100">
+                      <User className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-gray-400 uppercase">Persona Encargada</p>
+                      <p className="text-sm font-black text-gray-900">{ot.contactName || 'No especificado'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center border border-blue-100">
+                      <Mail className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-gray-400 uppercase">Email Contacto</p>
+                      <p className="text-sm font-black text-gray-900 lowercase">{ot.contactEmail || 'No especificado'}</p>
+                    </div>
+                  </div>
+                  {(ot.otAddress || ot.otReference) && (
+                    <div className="pt-3 border-t border-blue-100 space-y-2">
+                      {ot.otAddress && (
+                        <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase">Dirección de OT</p>
+                          <p className="text-xs font-bold text-gray-700 mt-0.5">{ot.otAddress}</p>
+                        </div>
+                      )}
+                      {ot.otReference && (
+                        <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase">Referencia OT</p>
+                          <p className="text-xs font-bold text-gray-700 mt-0.5 italic">"{ot.otReference}"</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-white border rounded-[2rem] p-6 shadow-sm md:col-span-2">
                 <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Planificación y Fondos</h3>
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
