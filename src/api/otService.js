@@ -80,9 +80,32 @@ export const otService = {
 
   async saveOT(otData) {
     const ots = await this.getOTs();
+    
+    // Generar ID personalizado: OT-[PREFIJO_TIENDA]-[NUM_TIENDA]-[SUFIJO]
+    const cleanName = (otData.storeName || 'NA')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .substring(0, 4);
+    
+    const cleanNum = (otData.storeNumber || '000')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '');
+      
+    const baseId = `OT-${cleanName}-${cleanNum}`;
+    
+    // Verificar colisiones para añadir sufijo único
+    const existingCount = ots.filter(o => o.id.startsWith(baseId)).length;
+    let finalId = baseId;
+    
+    if (existingCount > 0) {
+      // Si ya existe la base, añade -A, -B, -C...
+      const suffix = String.fromCharCode(65 + (existingCount - 1));
+      finalId = `${baseId}-${suffix}`;
+    }
+
     const newOT = {
       ...otData,
-      id: otData.id || `OT-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+      id: otData.id || finalId,
       status: otData.leadTechId ? 'ASSIGNED' : 'UNASSIGNED',
       location: otData.address || otData.location,
       createdAt: new Date().toISOString(),
@@ -92,6 +115,7 @@ export const otService = {
       pendingTasks: "",
       signature: null,
       supportTechs: otData.supportTechs || [],
+      assistantTechs: otData.assistantTechs || [],
       isLocked: false
     };
     const updated = [newOT, ...ots];
@@ -134,6 +158,13 @@ export const otService = {
       ot.id === otId ? { ...ot, ...updatedData } : ot
     );
     localStorage.setItem(OTS_KEY, JSON.stringify(updated));
+    return true;
+  },
+
+  async deleteOT(otId) {
+    const ots = await this.getOTs();
+    const filtered = ots.filter(ot => ot.id !== otId);
+    localStorage.setItem(OTS_KEY, JSON.stringify(filtered));
     return true;
   },
 

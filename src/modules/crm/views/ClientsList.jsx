@@ -99,8 +99,10 @@ function ClientFormModal({ onClose, onSave }) {
     rfc: '', 
     contact: '', 
     email: '', 
+    contactEmail: '',
     phone: '', 
     address: '',
+    secondaryAddress: '',
     lat: null,
     lng: null
   });
@@ -178,14 +180,19 @@ function ClientFormModal({ onClose, onSave }) {
                 value={formData.rfc} onChange={e => setFormData({...formData, rfc: e.target.value})} />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Contacto</label>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Nombre Contacto</label>
               <input required className="w-full bg-gray-50 border px-4 py-3 rounded-xl font-bold outline-none focus:border-primary" 
                 value={formData.contact} onChange={e => setFormData({...formData, contact: e.target.value})} />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Email</label>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Email Principal</label>
               <input type="email" required className="w-full bg-gray-50 border px-4 py-3 rounded-xl font-bold outline-none focus:border-primary" 
                 value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Email Secundario (OT)</label>
+              <input type="email" className="w-full bg-gray-50 border px-4 py-3 rounded-xl font-bold outline-none focus:border-primary" 
+                value={formData.contactEmail} onChange={e => setFormData({...formData, contactEmail: e.target.value})} />
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Teléfono</label>
@@ -193,7 +200,7 @@ function ClientFormModal({ onClose, onSave }) {
                 value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
             </div>
             <div className="md:col-span-2 space-y-1">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Dirección y Localización</label>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Dirección Principal (Mapa)</label>
               <div className="flex gap-2">
                 <input 
                   required 
@@ -212,12 +219,18 @@ function ClientFormModal({ onClose, onSave }) {
                   {searchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                 </button>
               </div>
-              {formData.lat && (
-                <div className="flex items-center gap-2 mt-2 text-[10px] font-black text-emerald-600 uppercase">
-                    <MapPin className="h-3 w-3" /> Ubicación Vinculada: {formData.lat.toFixed(4)}, {formData.lng.toFixed(4)}
-                </div>
-              )}
             </div>
+            <div className="md:col-span-2 space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Dirección Secundaria / Referencia</label>
+              <input className="w-full bg-gray-50 border px-4 py-3 rounded-xl font-bold outline-none focus:border-primary" 
+                value={formData.secondaryAddress} onChange={e => setFormData({...formData, secondaryAddress: e.target.value})} 
+                placeholder="Bodega, entrada alterna, etc." />
+            </div>
+            {formData.lat && (
+              <div className="md:col-span-2 flex items-center gap-2 mt-2 text-[10px] font-black text-emerald-600 uppercase">
+                  <MapPin className="h-3 w-3" /> Ubicación Vinculada: {formData.lat.toFixed(4)}, {formData.lng.toFixed(4)}
+              </div>
+            )}
           </div>
           <button type="submit" className="w-full bg-primary text-white py-4 rounded-2xl font-black shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all mt-4 uppercase tracking-widest text-sm">
             Confirmar Registro

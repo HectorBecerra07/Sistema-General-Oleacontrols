@@ -83,15 +83,26 @@ export default function DeliveryAct() {
                 <div className="flex gap-4">
                   <User className="h-5 w-5 text-primary shrink-0" />
                   <div>
-                    <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase">Atención a</p>
-                    <p className="text-sm md:text-base font-bold text-gray-900">{ot.client}</p>
+                    <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase">Persona Encargada</p>
+                    <p className="text-sm md:text-base font-bold text-gray-900">{ot.contactName || 'N/A'}</p>
+                    {ot.contactEmail && <p className="text-[10px] text-primary font-bold lowercase">{ot.contactEmail}</p>}
                   </div>
                 </div>
                 <div className="flex gap-4">
                   <MapPin className="h-5 w-5 text-primary shrink-0" />
                   <div>
-                    <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase">Dirección</p>
+                    <p className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase">Ubicación del Servicio</p>
                     <p className="text-sm md:text-base font-bold text-gray-900 leading-tight">{ot.address}</p>
+                    {ot.otAddress && (
+                      <p className="text-[11px] font-black text-gray-700 mt-1">
+                        Dir. Específica: {ot.otAddress}
+                      </p>
+                    )}
+                    {ot.otReference && (
+                      <p className="text-[11px] font-bold text-gray-500 italic mt-0.5">
+                        Ref: {ot.otReference}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
