@@ -1,7 +1,9 @@
 import prisma from './_lib/prisma.js'
+import { uploadToR2 } from './_lib/r2.js'
 
 export default async function handler(req, res) {
   const { method } = req;
+// ... (GET permanece igual)
 
   if (method === 'GET') {
     const { userId, otId, status } = req.query;
@@ -73,14 +75,20 @@ export default async function handler(req, res) {
           workOrderId = targetOT.id;
       }
 
-      // 3. Crear el gasto
+      // 3. Subir evidencia a R2 si existe
+      let r2Url = null;
+      if (finalReceipt) {
+          r2Url = await uploadToR2(finalReceipt, 'expenses');
+      }
+
+      // 4. Crear el gasto
       const expense = await prisma.expense.create({
         data: {
           amount: parsedAmount,
           category: category,
           description: description || '',
           paymentMethod: paymentMethod || 'CASH',
-          receipt: finalReceipt,
+          receipt: r2Url,
           status: 'PENDING',
           workOrderId: workOrderId,
           employeeId: userId

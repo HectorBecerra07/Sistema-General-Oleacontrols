@@ -1,13 +1,13 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import loginHandler from './api/login.js';
 import employeesHandler from './api/employees.js';
 import categoriesHandler from './api/categories.js';
 import otsHandler from './api/ots.js';
 import expensesHandler from './api/expenses.js';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;

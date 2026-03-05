@@ -162,6 +162,7 @@ model WorkOrder {
   clientSignature2  String?   // Firma Cliente 2 (Opcional)
   clientContact2    Json?     // {name, email}
   isLocked          Boolean   @default(false)
+  deliveryActUrl    String?   // URL del PDF en R2
   
   evidences         Evidence[]
   expenses          Expense[]

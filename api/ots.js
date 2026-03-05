@@ -1,7 +1,48 @@
 import prisma from './_lib/prisma.js'
+import { uploadToR2 } from './_lib/r2.js'
 
 export default async function handler(req, res) {
   const { method } = req;
+
+  // Helper para procesar imágenes de OT a R2
+  const processOTImages = async (data) => {
+    const updated = { ...data };
+    
+    // 1. Procesar Firmas
+    if (updated.signature && updated.signature.startsWith('data:')) {
+        updated.signature = await uploadToR2(updated.signature, 'signatures');
+    }
+    if (updated.clientSignature && updated.clientSignature.startsWith('data:')) {
+        updated.clientSignature = await uploadToR2(updated.clientSignature, 'signatures');
+    }
+    if (updated.clientSignature2 && updated.clientSignature2.startsWith('data:')) {
+        updated.clientSignature2 = await uploadToR2(updated.clientSignature2, 'signatures');
+    }
+
+    // 1.5 Procesar Acta de Entrega (PDF)
+    if (updated.deliveryActUrl && updated.deliveryActUrl.startsWith('data:')) {
+        updated.deliveryActUrl = await uploadToR2(updated.deliveryActUrl, 'delivery-acts');
+    }
+
+    // 2. Procesar fotos de evidencia (evidences / completionPhotos / photos)
+    const photoFields = ['completionPhotos', 'photos'];
+    for (const field of photoFields) {
+        if (Array.isArray(updated[field])) {
+            const uploaded = [];
+            for (const item of updated[field]) {
+                if (typeof item === 'string' && item.startsWith('data:')) {
+                    const url = await uploadToR2(item, 'evidences');
+                    uploaded.push(url);
+                } else {
+                    uploaded.push(item);
+                }
+            }
+            updated[field] = uploaded;
+        }
+    }
+
+    return updated;
+  };
 
   if (method === 'GET') {
     try {
@@ -66,7 +107,7 @@ export default async function handler(req, res) {
 
   if (method === 'POST') {
     try {
-      const data = req.body;
+      const data = await processOTImages(req.body);
       
       const cleanName = (data.storeName || 'NA').toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 4);
       const cleanNum = (data.storeNumber || '000').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -120,11 +161,12 @@ export default async function handler(req, res) {
 
   if (method === 'PUT') {
     try {
+      const data = await processOTImages(req.body);
       const { 
           id, status, report, signature, clientSignature, clientSignature2, 
           systemType, deliveryDetails, pendingTasks, clientContact2, photos,
           startedAt, finishedAt, leadTechId, assignedFunds, isLocked 
-      } = req.body;
+      } = data;
       
       // Buscar la OT real
       const targetOT = await prisma.workOrder.findFirst({

@@ -233,15 +233,19 @@ export default function DeliveryAct() {
     }
 
     doc.save(`AER_${ot.otNumber}.pdf`);
-  };
+    return doc.output('datauristring'); // Devolver como base64
+    };
 
-  const handleFinish = async () => {
+    const handleFinish = async () => {
     if (tscSigPad.current.isEmpty() || clientSigPad.current.isEmpty()) {
         alert("Ambas firmas son obligatorias.");
         return;
     }
     setIsSaving(true);
     try {
+        // Generar PDF y obtener su base64
+        const pdfBase64 = await generatePDF(formData);
+
         const updateData = {
             status: 'COMPLETED',
             systemType: formData.systemType,
@@ -249,9 +253,10 @@ export default function DeliveryAct() {
             pendingTasks: formData.pendingTasks,
             signature: tscSigPad.current.toDataURL(),
             clientSignature: clientSigPad.current.toDataURL(),
-            photos: formData.photos,
+            deliveryActUrl: pdfBase64, // Enviamos el PDF para que el backend lo suba a R2
             finishedAt: new Date().toISOString()
         };
+
         await otService.updateOT(ot.id, updateData);
         generatePDF(updateData);
         navigate(`/ots/${ot.id}`);

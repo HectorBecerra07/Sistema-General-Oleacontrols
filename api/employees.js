@@ -1,7 +1,38 @@
 import prisma from './_lib/prisma.js'
+import { uploadToR2 } from './_lib/r2.js'
 
 export default async function handler(req, res) {
+  // Helper para procesar múltiples documentos a R2
+  const processDocs = async (body) => {
+    const docFields = [
+      'avatar', 'ine', 'curp', 'rfc', 'nss', 'birthCertificate', 'proofOfResidency', 'cv', 'ineDoc',
+      'contractSigned', 'privacyPolicySigned', 'internalRulesSigned', 'imssHigh',
+      'studyCertificate', 'degreeOrProfessionalId', 'diplomasOrCourses', 'laborCertifications', 'recommendationLetter',
+      'performanceEvaluations', 'receivedTraining', 'administrativeActs', 'disciplinaryReports', 'permitsOrLicenses',
+      'resignationLetter', 'settlementOrLiquidation', 'imssLow', 'laborConstancy'
+    ];
+
+    const updatedBody = { ...body };
+    console.log(`[R2] Iniciando procesamiento de ${docFields.length} campos para documentos.`);
+    
+    for (const field of docFields) {
+      const value = updatedBody[field];
+      if (value && typeof value === 'string' && value.startsWith('data:')) {
+        try {
+          console.log(`[R2] Subiendo archivo detectado en campo: ${field}`);
+          const url = await uploadToR2(value, 'hr-documents');
+          updatedBody[field] = url;
+          console.log(`[R2] Éxito: ${field} -> ${url}`);
+        } catch (e) {
+          console.error(`[R2] Error crítico subiendo ${field}:`, e.message);
+        }
+      }
+    }
+    return updatedBody;
+  };
+
   if (req.method === 'GET') {
+// ...
     try {
       const employees = await prisma.employee.findMany({
         orderBy: { employeeId: 'asc' }
@@ -13,19 +44,19 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { 
-        name, email, roles, position, department, location, phone, joinDate, password, reportsTo, employeeId,
-        birthDate, birthPlace, nationality, maritalStatus, address, emergencyContactName, emergencyContactPhone,
-        ine, curp, rfc, nss, birthCertificate, proofOfResidency, cv, ineDoc,
-        contractSigned, privacyPolicySigned, internalRulesSigned, imssHigh,
-        studyCertificate, degreeOrProfessionalId, diplomasOrCourses, laborCertifications, recommendationLetter,
-        performanceEvaluations, receivedTraining, administrativeActs, disciplinaryReports, permitsOrLicenses,
-        resignationLetter, settlementOrLiquidation, imssLow, laborConstancy,
-        contractType, workSchedule, salary,
-        bankName, bankAccount, paymentType
-    } = req.body
-    
     try {
+      const body = await processDocs(req.body);
+      const { 
+          name, email, roles, position, department, location, phone, joinDate, password, reportsTo, employeeId,
+          birthDate, birthPlace, nationality, maritalStatus, address, emergencyContactName, emergencyContactPhone,
+          ine, curp, rfc, nss, birthCertificate, proofOfResidency, cv, ineDoc,
+          contractSigned, privacyPolicySigned, internalRulesSigned, imssHigh,
+          studyCertificate, degreeOrProfessionalId, diplomasOrCourses, laborCertifications, recommendationLetter,
+          performanceEvaluations, receivedTraining, administrativeActs, disciplinaryReports, permitsOrLicenses,
+          resignationLetter, settlementOrLiquidation, imssLow, laborConstancy,
+          contractType, workSchedule, salary,
+          bankName, bankAccount, paymentType
+      } = body
       if (!name || !email) {
         return res.status(400).json({ error: 'Nombre y Email son obligatorios' });
       }
@@ -160,21 +191,21 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'PUT') {
-    const { 
-        id, password, roles, email, name, position, department, location, phone, joinDate, reportsTo, status, employeeId,
-        birthDate, birthPlace, nationality, maritalStatus, address, emergencyContactName, emergencyContactPhone,
-        ine, curp, rfc, nss, birthCertificate, proofOfResidency, cv, ineDoc,
-        contractSigned, privacyPolicySigned, internalRulesSigned, imssHigh,
-        studyCertificate, degreeOrProfessionalId, diplomasOrCourses, laborCertifications, recommendationLetter,
-        performanceEvaluations, receivedTraining, administrativeActs, disciplinaryReports, permitsOrLicenses,
-        resignationLetter, settlementOrLiquidation, imssLow, laborConstancy,
-        contractType, workSchedule, salary,
-        bankName, bankAccount, paymentType
-    } = req.body
-    
-    if (!id) return res.status(400).json({ error: 'ID requerido' });
-
     try {
+      const body = await processDocs(req.body);
+      const { 
+          id, password, roles, email, name, position, department, location, phone, joinDate, reportsTo, status, employeeId,
+          birthDate, birthPlace, nationality, maritalStatus, address, emergencyContactName, emergencyContactPhone,
+          ine, curp, rfc, nss, birthCertificate, proofOfResidency, cv, ineDoc,
+          contractSigned, privacyPolicySigned, internalRulesSigned, imssHigh,
+          studyCertificate, degreeOrProfessionalId, diplomasOrCourses, laborCertifications, recommendationLetter,
+          performanceEvaluations, receivedTraining, administrativeActs, disciplinaryReports, permitsOrLicenses,
+          resignationLetter, settlementOrLiquidation, imssLow, laborConstancy,
+          contractType, workSchedule, salary,
+          bankName, bankAccount, paymentType
+      } = body
+      
+      if (!id) return res.status(400).json({ error: 'ID requerido' });
       const updateData = {
         employeeId: employeeId || undefined,
         name: name || undefined,
