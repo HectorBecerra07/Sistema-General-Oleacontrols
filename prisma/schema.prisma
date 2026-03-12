@@ -223,7 +223,7 @@ model Evaluation {
   
   createdAt       DateTime @default(now())
 
-  @@unique([otId, type]) // Evita que se evalúe la misma OT dos veces para el mismo fin
+  @@unique([otId, type, targetId]) // Permite evaluar a múltiples personas en la misma OT
 }
 
 model SystemConfig {

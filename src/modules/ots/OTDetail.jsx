@@ -37,6 +37,9 @@ export default function OTDetail() {
   const [elapsedTime, setElapsedTime] = useState('00:00:00');
   
   const isLead = ot?.technicianId === user?.id;
+  const isSupport = (ot?.supportTechs && ot.supportTechs.some(st => st.id === user?.id)) ||
+                    (ot?.assistantTechs && ot.assistantTechs.some(at => at.id === user?.id));
+  const isInvolved = isLead || isSupport;
   const isSupervisor = user?.role === ROLES.OPS || user?.role === ROLES.ADMIN;
   const isCompleted = ot?.status === 'COMPLETED';
 
@@ -197,7 +200,7 @@ export default function OTDetail() {
                 Prioridad {ot.priority}
               </span>
               <span className="text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest border bg-amber-50 text-amber-700 border-amber-100">
-                {isLead ? 'Técnico Líder' : isSupervisor ? 'Modo Supervisor' : 'Consulta'}
+                {isLead ? 'Técnico Líder' : isSupport ? 'Técnico de Apoyo' : isSupervisor ? 'Modo Supervisor' : 'Consulta'}
               </span>
             </div>
             <h2 className="text-3xl font-black text-gray-900 leading-tight tracking-tighter">{ot.title}</h2>
@@ -272,7 +275,10 @@ export default function OTDetail() {
 
       {/* Tabs */}
       <div className="flex bg-white border rounded-2xl p-1.5 gap-1 sticky top-4 z-30 shadow-2xl mx-2 md:mx-0">
-        {TABS.map((tab) => (
+        {TABS.filter(tab => {
+            if (tab.id === 'INFO') return true;
+            return isInvolved || isSupervisor;
+        }).map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}

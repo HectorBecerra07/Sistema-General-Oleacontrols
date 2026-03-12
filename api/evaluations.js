@@ -56,8 +56,8 @@ export default async function handler(req, res) {
         });
 
         if (targetOT) {
-          const evaluation = await prisma.evaluation.findUnique({
-            where: { otId_type: { otId: targetOT.id, type } }
+          const evaluation = await prisma.evaluation.findFirst({
+            where: { otId: targetOT.id, type }
           });
           return res.status(200).json(evaluation || {});
         }
@@ -163,32 +163,53 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: `Orden de Trabajo ${otId} no encontrada` });
       }
 
-      if (!targetId) {
-        console.error(`Error: Missing targetId (evaluated technician/exec)`);
-        return res.status(400).json({ error: 'Falta el ID del técnico o ejecutivo a evaluar' });
+      // Determinar a quiénes evaluar
+      let targets = [];
+      if (type === 'CUSTOMER_TECH' || type === 'OPS_TECH') {
+          // Evaluar a todo el equipo técnico involucrado
+          if (targetOT.technicianId) targets.push(targetOT.technicianId);
+          
+          const support = targetOT.supportTechs ? (typeof targetOT.supportTechs === 'string' ? JSON.parse(targetOT.supportTechs) : targetOT.supportTechs) : [];
+          const assistant = targetOT.assistantTechs ? (typeof targetOT.assistantTechs === 'string' ? JSON.parse(targetOT.assistantTechs) : targetOT.assistantTechs) : [];
+          
+          [...support, ...assistant].forEach(t => {
+              const id = typeof t === 'string' ? t : t.id;
+              if (id && !targets.includes(id)) targets.push(id);
+          });
+      } else {
+          // Evaluar solo al target especificado (ej. Ejecutivo)
+          if (targetId) targets.push(targetId);
       }
 
-      const evaluation = await prisma.evaluation.create({
-        data: { 
-          type, 
-          otId: targetOT.id, // Usamos el ID real (CUID) para la relación
-          targetId, 
-          evaluatorId, 
-          score1: score1 ? parseInt(score1) : 0, 
-          score2: score2 ? parseInt(score2) : 0, 
-          score3: score3 && !isNaN(parseInt(score3)) ? parseInt(score3) : null, 
-          materialUsage, 
-          improvements, 
-          comment 
-        }
-      });
+      if (targets.length === 0) {
+        console.error(`Error: No targets found for evaluation`);
+        return res.status(400).json({ error: 'No se encontraron técnicos o personal para evaluar en esta orden' });
+      }
+
+      // Crear evaluaciones para todos los objetivos
+      const evaluations = await Promise.all(targets.map(tId => {
+          return prisma.evaluation.create({
+            data: { 
+              type, 
+              otId: targetOT.id, 
+              targetId: tId, 
+              evaluatorId, 
+              score1: score1 ? parseInt(score1) : 0, 
+              score2: score2 ? parseInt(score2) : 0, 
+              score3: score3 && !isNaN(parseInt(score3)) ? parseInt(score3) : null, 
+              materialUsage, 
+              improvements, 
+              comment 
+            }
+          });
+      }));
       
-      console.log('Evaluation created successfully:', evaluation.id);
-      return res.status(201).json(evaluation);
+      console.log(`${evaluations.length} evaluations created successfully`);
+      return res.status(201).json(evaluations[0]); // Retornamos la primera para compatibilidad con el frontend
     } catch (error) {
       console.error('API evaluations POST error details:', error);
       if (error.code === 'P2002') {
-        return res.status(409).json({ error: 'Esta orden de trabajo ya ha sido evaluada para este fin.' });
+        return res.status(409).json({ error: 'Esta orden de trabajo ya ha sido evaluada para este personal.' });
       }
       return res.status(500).json({ error: error.message });
     }
