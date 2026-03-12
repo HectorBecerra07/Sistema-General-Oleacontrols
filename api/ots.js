@@ -85,7 +85,13 @@ export default async function handler(req, res) {
       }
 
       const where = {};
-      if (techId) where.technicianId = techId;
+      if (techId) {
+          where.OR = [
+              { technicianId: techId },
+              { assistantTechs: { array_contains: [{ id: techId }] } },
+              { supportTechs: { array_contains: [{ id: techId }] } }
+          ];
+      }
       if (supervisorId) where.supervisorId = supervisorId;
       if (status && status !== 'ALL') where.status = status;
 

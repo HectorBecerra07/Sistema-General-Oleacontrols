@@ -84,11 +84,12 @@ export default function TechnicianOTs() {
 
   const loadData = async () => {
     setLoading(true);
-    const data = await otService.getOTs();
+    const data = await otService.getOTs({ techId: user.id });
     // Visible if user is lead or support technician
     setOts(data.filter(o => 
       o.leadTechId === user.id || 
-      (o.supportTechs && o.supportTechs.some(st => st.id === user.id))
+      (o.supportTechs && o.supportTechs.some(st => st.id === user.id)) ||
+      (o.assistantTechs && o.assistantTechs.some(at => at.id === user.id))
     ));
     setLoading(false);
   };
