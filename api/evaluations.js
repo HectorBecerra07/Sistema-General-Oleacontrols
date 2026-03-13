@@ -119,6 +119,25 @@ export default async function handler(req, res) {
         });
       }
 
+      // 2.5 Obtener Recomendaciones y Comentarios (Para Supervisores)
+      if (req.query.getRecommendations === 'true') {
+        const recommendations = await prisma.evaluation.findMany({
+          where: {
+            OR: [
+              { improvements: { not: null, not: "" } },
+              { comment: { not: null, not: "" } }
+            ]
+          },
+          include: {
+            target: { select: { name: true } },
+            workOrder: { select: { otNumber: true, clientName: true } }
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 50
+        });
+        return res.status(200).json(recommendations);
+      }
+
       // 2. Métricas Individuales con Comparativa Quincenal
       if (targetId) {
         const currEvals = await prisma.evaluation.findMany({

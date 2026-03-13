@@ -38,6 +38,8 @@ export default function PerformanceDashboard() {
   const { user } = useAuth();
   const [data, setData] = useState({ ranking: [], period: '' });
   const [myMetrics, setMyMetrics] = useState(null);
+  const [recommendations, setRecommendations] = useState([]);
+  const [showRecommendations, setShowRecommendations] = useState(false);
   const [bonusConfig, setBonusConfig] = useState([
     { label: 'Excelente', min: 4.8, amount: 1500, color: 'amber' },
     { label: 'Muy Bueno', min: 4.5, amount: 1000, color: 'blue' },
@@ -74,6 +76,9 @@ export default function PerformanceDashboard() {
       if (isSupervisor) {
          const rankRes = await fetch(`/api/evaluations?ranking=true`);
          if (rankRes.ok) setData(await rankRes.json());
+
+         const recRes = await fetch(`/api/evaluations?getRecommendations=true`);
+         if (recRes.ok) setRecommendations(await recRes.json());
       }
     } catch (err) {
       console.error(err);
@@ -190,6 +195,83 @@ export default function PerformanceDashboard() {
                </tbody>
              </table>
            </div>
+        </div>
+      )}
+
+      {/* Recomendaciones y Comentarios (Supervisores) */}
+      {isSupervisor && (
+        <div className="space-y-6 pt-6">
+          <div className="flex justify-between items-end">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.3em] flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" /> Recomendaciones y Feedback de Clientes
+            </h3>
+            <button 
+              onClick={() => setShowRecommendations(!showRecommendations)}
+              className="text-[10px] font-black text-primary uppercase underline tracking-widest"
+            >
+              {showRecommendations ? 'Ocultar Detalle' : 'Ver Todos los Comentarios'}
+            </button>
+          </div>
+
+          {showRecommendations ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom-4 duration-500">
+              {recommendations.length > 0 ? recommendations.map((rec) => (
+                <div key={rec.id} className="bg-white border border-gray-100 p-6 rounded-[2.5rem] shadow-sm space-y-4 hover:shadow-md transition-shadow">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-primary uppercase tracking-widest">{rec.workOrder?.otNumber}</p>
+                      <p className="text-xs font-black text-gray-900 line-clamp-1">{rec.workOrder?.clientName}</p>
+                    </div>
+                    <div className="flex items-center gap-1 bg-amber-50 text-amber-600 px-2 py-1 rounded-lg">
+                      <Star className="h-3 w-3 fill-current" />
+                      <span className="text-[10px] font-black">{rec.score3 || rec.score1}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {rec.improvements && (
+                      <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100/50">
+                        <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1">Mejoras Sugeridas</p>
+                        <p className="text-[11px] font-medium text-blue-900 italic leading-relaxed">"{rec.improvements}"</p>
+                      </div>
+                    )}
+                    {rec.comment && (
+                      <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Comentario Adicional</p>
+                        <p className="text-[11px] font-medium text-gray-600 italic leading-relaxed">"{rec.comment}"</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-50 flex justify-between items-center">
+                    <div>
+                      <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Evaluado</p>
+                      <p className="text-[10px] font-black text-gray-900 uppercase">{rec.target?.name || 'Sistema'}</p>
+                    </div>
+                    <p className="text-[9px] font-bold text-gray-400">{new Date(rec.createdAt).toLocaleDateString()}</p>
+                  </div>
+                </div>
+              )) : (
+                <div className="col-span-full py-20 text-center bg-gray-50 rounded-[3rem] border-2 border-dashed border-gray-100">
+                  <MessageSquare className="h-12 w-12 text-gray-200 mx-auto mb-4" />
+                  <p className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">No hay comentarios registrados esta quincena</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-8 rounded-[3rem] text-white flex items-center justify-between shadow-xl shadow-blue-200/50 group cursor-pointer" onClick={() => setShowRecommendations(true)}>
+              <div className="flex items-center gap-6">
+                <div className="h-16 w-16 bg-white/10 rounded-[1.5rem] flex items-center justify-center backdrop-blur-sm group-hover:scale-110 transition-transform">
+                  <MessageSquare className="h-8 w-8 text-white" />
+                </div>
+                <div>
+                  <p className="text-2xl font-black tracking-tighter">Tienes {recommendations.length} comentarios nuevos</p>
+                  <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.2em] mt-1">Recomendaciones directas de clientes sobre atención y servicio</p>
+                </div>
+              </div>
+              <ChevronRight className="h-8 w-8 text-white/40 group-hover:translate-x-2 transition-transform" />
+            </div>
+          )}
         </div>
       )}
 
