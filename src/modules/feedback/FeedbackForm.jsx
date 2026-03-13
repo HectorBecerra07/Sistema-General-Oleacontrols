@@ -72,7 +72,8 @@ export default function FeedbackForm() {
   const [error, setError] = useState(null);
   const [formData, setFormData] = useState({
     score1: 0, score2: 0, score3: 0,
-    materialUsage: '', improvements: '', comment: ''
+    materialUsage: '', improvements: '', comment: '',
+    satisfaction: 0 // Nuevo campo para separar estrellas de texto en CUSTOMER_EXEC
   });
 
   const config = EVALUATION_TYPES[type];
@@ -105,14 +106,16 @@ export default function FeedbackForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    
+    // Si es CUSTOMER_EXEC, score3 es la satisfacción (estrellas) e improvements es el texto
     const payload = {
       otId, type,
       targetId: type === 'CUSTOMER_EXEC' ? (ot?.creatorId || 'admin') : ot?.technicianId,
       score1: formData.score1,
       score2: formData.score2,
-      score3: config.isTextQ3 ? null : formData.score3,
+      score3: config.isTextQ3 ? formData.satisfaction : formData.score3,
       materialUsage: formData.materialUsage,
-      improvements: config.isTextQ3 ? formData.score3 : null,
+      improvements: config.isTextQ3 ? formData.improvements : null,
       comment: formData.comment
     };
 
@@ -213,6 +216,10 @@ export default function FeedbackForm() {
                 <StarRating label={config.q1} value={formData.score1} onChange={(v) => setFormData({...formData, score1: v})} />
                 <StarRating label={config.q2} value={formData.score2} onChange={(v) => setFormData({...formData, score2: v})} />
 
+                {config.showQ3 && config.isTextQ3 && (
+                  <StarRating label="¿Qué tan satisfecho está con el seguimiento?" value={formData.satisfaction} onChange={(v) => setFormData({...formData, satisfaction: v})} />
+                )}
+
                 {config.showQ3 && !config.isTextQ3 && (
                   <StarRating label={config.q3} value={formData.score3} onChange={(v) => setFormData({...formData, score3: v})} />
                 )}
@@ -223,8 +230,8 @@ export default function FeedbackForm() {
                     <textarea
                       className="w-full bg-white border border-gray-100 rounded-[2rem] p-8 outline-none focus:border-blue-500 transition-all text-sm min-h-[140px] shadow-sm font-medium focus:shadow-xl focus:shadow-blue-100/50"
                       placeholder="Escribe tu opinión aquí..."
-                      value={formData.score3}
-                      onChange={(e) => setFormData({...formData, score3: e.target.value})}
+                      value={formData.improvements}
+                      onChange={(e) => setFormData({...formData, improvements: e.target.value})}
                     />
                   </motion.div>
                 )}
