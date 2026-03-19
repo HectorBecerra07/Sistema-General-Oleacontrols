@@ -14,6 +14,7 @@ import gamificationHandler from './api/gamification.js';
 import crmHandler from './api/crm.js';
 import quotesHandler from './api/quotes.js';
 import uploadHandler from './api/upload.js';
+import vacationsHandler from './api/vacations.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -95,6 +96,11 @@ app.get('/api/quotes', adaptHandler(quotesHandler));
 app.post('/api/quotes', adaptHandler(quotesHandler));
 app.put('/api/quotes', adaptHandler(quotesHandler));
 app.delete('/api/quotes', adaptHandler(quotesHandler));
+
+// Vacations
+app.get('/api/vacations', adaptHandler(vacationsHandler));
+app.post('/api/vacations', adaptHandler(vacationsHandler));
+app.put('/api/vacations', adaptHandler(vacationsHandler));
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running locally at http://localhost:${PORT}`);

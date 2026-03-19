@@ -199,7 +199,12 @@ export default function OTDetail() {
               )}>
                 Prioridad {ot.priority}
               </span>
-              <span className="text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest border bg-amber-50 text-amber-700 border-amber-100">
+              <span className={cn(
+                "text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest border shadow-sm",
+                isLead ? "bg-amber-50 text-amber-700 border-amber-100" :
+                isSupport ? "bg-indigo-50 text-indigo-700 border-indigo-100 shadow-indigo-100/50" :
+                isSupervisor ? "bg-purple-50 text-purple-700 border-purple-100" : "bg-gray-50 text-gray-400 border-gray-100"
+              )}>
                 {isLead ? 'Técnico Líder' : isSupport ? 'Técnico de Apoyo' : isSupervisor ? 'Modo Supervisor' : 'Consulta'}
               </span>
             </div>

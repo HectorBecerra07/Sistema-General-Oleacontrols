@@ -1,16 +1,130 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Palmtree, 
   Calendar as CalendarIcon, 
   CheckCircle2, 
   XCircle,
   Clock,
-  Filter
+  Filter,
+  Edit2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { hrService } from '@/api/hrService';
 
 export default function TimeOff() {
   const [activeTab, setActiveTab] = useState('REQUESTS');
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [selectedEmp, setSelectedEmp] = useState(null);
+  const [formData, setFormData] = useState({
+    employeeId: '',
+    startDate: '',
+    endDate: '',
+    days: '',
+    reason: '',
+    type: 'ANNUAL'
+  });
+  const [adjustDays, setAdjustDays] = useState('');
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const emps = await hrService.getEmployees();
+      setEmployees(emps);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusUpdate = async (requestId, status) => {
+    if (!confirm(`¿Estás seguro de ${status === 'APPROVED' ? 'aprobar' : 'rechazar'} esta solicitud?`)) return;
+    try {
+      await hrService.updateVacationRequest(requestId, status);
+      await fetchData();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const openAdjustModal = (emp) => {
+    setSelectedEmp(emp);
+    setAdjustDays(emp.vacationBalance?.toString() || '0');
+    setShowAdjustModal(true);
+  };
+
+  const handleSaveAdjustment = async () => {
+    if (adjustDays === '' || isNaN(parseFloat(adjustDays))) return;
+    try {
+      await hrService.updateVacationBalanceManual(selectedEmp.id, parseFloat(adjustDays));
+      setShowAdjustModal(false);
+      await fetchData();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  // Auto-calculate days when dates change
+  useEffect(() => {
+    if (formData.startDate && formData.endDate) {
+      const start = new Date(formData.startDate);
+      const end = new Date(formData.endDate);
+      const diffTime = Math.abs(end - start);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      if (!isNaN(diffDays) && diffDays > 0) {
+        setFormData(prev => ({ ...prev, days: diffDays.toString() }));
+      }
+    }
+  }, [formData.startDate, formData.endDate]);
+
+  const handleManualRequest = async (e) => {
+    e.preventDefault();
+    try {
+      await hrService.requestVacation(formData);
+      setShowManualModal(false);
+      setFormData({ employeeId: '', startDate: '', endDate: '', days: '', reason: '', type: 'ANNUAL' });
+      await fetchData();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const calculateYears = (joinDate) => {
+    if (!joinDate) return 0;
+    const join = new Date(joinDate);
+    const now = new Date();
+    let years = now.getFullYear() - join.getFullYear();
+    const m = now.getMonth() - join.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < join.getDate())) {
+      years--;
+    }
+    return years;
+  };
+
+  const calculateDaysByLaw = (years) => {
+    if (years < 1) return 0;
+    return 12 + (years - 1) * 2;
+  };
+
+  // Get all pending requests from all employees
+  const allRequests = employees.flatMap(emp => 
+    (emp.vacationRequests || []).map(req => ({ ...req, employee: emp }))
+  ).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const filteredEmployees = employees.filter(e => 
+    e.name.toLowerCase().includes(search.toLowerCase()) || 
+    (e.department || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  if (loading && employees.length === 0) return <div className="p-10 text-center font-black text-gray-400 uppercase tracking-widest animate-pulse">Cargando datos de RH...</div>;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -19,9 +133,12 @@ export default function TimeOff() {
           <h2 className="text-3xl font-black text-gray-900 leading-tight">Vacaciones y Ausencias</h2>
           <p className="text-sm text-gray-500 font-medium mt-1">Gestiona los balances de días libres y aprueba solicitudes del equipo.</p>
         </div>
-        <button className="flex items-center gap-2 bg-primary text-white px-5 py-3 rounded-2xl font-bold text-sm shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all">
+        <button 
+          onClick={() => setShowManualModal(true)}
+          className="flex items-center gap-2 bg-primary text-white px-5 py-3 rounded-2xl font-bold text-sm shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all"
+        >
           <Palmtree className="h-4 w-4" />
-          Nueva Solicitud Manual
+          Nueva Solicitud RH
         </button>
       </div>
 
@@ -50,54 +167,78 @@ export default function TimeOff() {
       <div className="pt-4">
         {activeTab === 'REQUESTS' && (
           <div className="space-y-4">
-            {[
-              { id: 'REQ-101', emp: 'Luis Martínez', role: 'Técnico', type: 'Vacaciones Anuales', dates: '12 May 2026 - 16 May 2026', days: 5, status: 'PENDING', reason: 'Vacaciones familiares programadas.' },
-              { id: 'REQ-102', emp: 'Sofía Reyes', role: 'Ventas', type: 'Permiso Personal (Con goce)', dates: '26 Feb 2026', days: 1, status: 'PENDING', reason: 'Trámite notarial urgente.' },
-              { id: 'REQ-100', emp: 'Gabriel Tech', role: 'Técnico', type: 'Vacaciones', dates: '01 Feb 2026 - 05 Feb 2026', days: 5, status: 'APPROVED', reason: '' }
-            ].map((req) => (
-              <div key={req.id} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 hover:border-primary/30 transition-colors group">
-                <div className="flex items-start gap-4 flex-1">
-                  <div className="h-12 w-12 rounded-2xl bg-gray-50 flex items-center justify-center font-black text-lg text-gray-400 border group-hover:bg-primary/5 group-hover:text-primary transition-all">
-                    {req.emp.charAt(0)}
-                  </div>
-                  <div className="space-y-1 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-black text-gray-900 text-lg leading-none">{req.emp}</h4>
-                      <span className={cn(
-                        "text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider",
-                        req.status === 'PENDING' ? "bg-amber-100 text-amber-700" : "bg-green-100 text-green-700"
-                      )}>
-                        {req.status === 'PENDING' ? 'Pendiente' : 'Aprobado'}
-                      </span>
+            {allRequests.filter(r => r.status === 'PENDING').length > 0 ? (
+              allRequests.filter(r => r.status === 'PENDING').map((req) => (
+                <div key={req.id} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 hover:border-primary/30 transition-colors group">
+                  <div className="flex items-start gap-4 flex-1">
+                    <div className="h-12 w-12 rounded-2xl bg-gray-50 flex items-center justify-center font-black text-lg text-gray-400 border group-hover:bg-primary/5 group-hover:text-primary transition-all">
+                      {req.employee.name.charAt(0)}
                     </div>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{req.role} • {req.id}</p>
-                    
-                    <div className="flex flex-wrap gap-4 mt-3">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-gray-600 bg-gray-50 px-3 py-1 rounded-lg">
-                        <Palmtree className="h-3.5 w-3.5 text-primary" />
-                        {req.type}
+                    <div className="space-y-1 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-black text-gray-900 text-lg leading-none">{req.employee.name}</h4>
+                        <span className="text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider bg-amber-100 text-amber-700">
+                          Pendiente
+                        </span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-gray-600 bg-gray-50 px-3 py-1 rounded-lg">
-                        <CalendarIcon className="h-3.5 w-3.5 text-gray-400" />
-                        {req.dates} ({req.days} días)
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{req.employee.position} • {req.id}</p>
+                      
+                      <div className="flex flex-wrap gap-4 mt-3">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-gray-600 bg-gray-50 px-3 py-1 rounded-lg">
+                          <Palmtree className="h-3.5 w-3.5 text-primary" />
+                          {req.type}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-gray-600 bg-gray-50 px-3 py-1 rounded-lg">
+                          <CalendarIcon className="h-3.5 w-3.5 text-gray-400" />
+                          {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()} ({req.days} días)
+                        </div>
                       </div>
+                      {req.reason && <p className="text-xs text-gray-500 font-medium italic mt-2">"{req.reason}"</p>}
                     </div>
-                    {req.reason && <p className="text-xs text-gray-500 font-medium italic mt-2">"{req.reason}"</p>}
                   </div>
-                </div>
 
-                {req.status === 'PENDING' && (
                   <div className="flex gap-3 md:flex-col lg:flex-row w-full md:w-auto">
-                    <button className="flex-1 flex items-center justify-center gap-2 bg-red-50 text-red-600 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-wider hover:bg-red-100 transition-all border border-red-100">
+                    <button 
+                      onClick={() => handleStatusUpdate(req.id, 'REJECTED')}
+                      className="flex-1 flex items-center justify-center gap-2 bg-red-50 text-red-600 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-wider hover:bg-red-100 transition-all border border-red-100"
+                    >
                       <XCircle className="h-4 w-4" /> Rechazar
                     </button>
-                    <button className="flex-1 flex items-center justify-center gap-2 bg-emerald-50 text-emerald-600 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-wider hover:bg-emerald-100 transition-all border border-emerald-100 shadow-lg shadow-emerald-50">
+                    <button 
+                      onClick={() => handleStatusUpdate(req.id, 'APPROVED')}
+                      className="flex-1 flex items-center justify-center gap-2 bg-emerald-50 text-emerald-600 px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-wider hover:bg-emerald-100 transition-all border border-emerald-100 shadow-lg shadow-emerald-50"
+                    >
                       <CheckCircle2 className="h-4 w-4" /> Aprobar
                     </button>
                   </div>
-                )}
+                </div>
+              ))
+            ) : (
+              <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200 text-gray-400 font-bold italic">
+                No hay solicitudes pendientes de aprobación.
               </div>
-            ))}
+            )}
+
+            {/* Histórico Reciente */}
+            {allRequests.filter(r => r.status !== 'PENDING').length > 0 && (
+               <div className="mt-8 space-y-4">
+                  <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest px-2">Histórico Reciente</h3>
+                  {allRequests.filter(r => r.status !== 'PENDING').slice(0, 5).map(req => (
+                    <div key={req.id} className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100 flex justify-between items-center opacity-70">
+                        <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-lg bg-white flex items-center justify-center font-black text-xs text-gray-400 border">
+                                {req.employee.name.charAt(0)}
+                            </div>
+                            <div>
+                                <p className="text-xs font-black text-gray-900">{req.employee.name}</p>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase">{req.type} • {req.status}</p>
+                            </div>
+                        </div>
+                        <p className="text-[10px] font-bold text-gray-500">{new Date(req.startDate).toLocaleDateString()}</p>
+                    </div>
+                  ))}
+               </div>
+            )}
           </div>
         )}
 
@@ -106,9 +247,14 @@ export default function TimeOff() {
             <div className="p-4 border-b bg-gray-50/50 flex justify-between items-center">
               <div className="relative">
                 <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input type="text" placeholder="Filtrar por empleado o departamento..." className="pl-10 pr-4 py-2 border rounded-xl text-sm outline-none focus:border-primary w-64" />
+                <input 
+                  type="text" 
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Filtrar por empleado o departamento..." 
+                  className="pl-10 pr-4 py-2 border rounded-xl text-sm outline-none focus:border-primary w-64" 
+                />
               </div>
-              <button className="text-xs font-black text-primary uppercase hover:underline">Exportar Excel</button>
             </div>
             <table className="w-full text-left">
               <thead className="bg-white border-b">
@@ -116,32 +262,40 @@ export default function TimeOff() {
                   <th className="px-6 py-4">Empleado</th>
                   <th className="px-6 py-4">Antigüedad</th>
                   <th className="px-6 py-4">Días por Ley</th>
-                  <th className="px-6 py-4">Disfrutados</th>
                   <th className="px-6 py-4 text-primary">Saldo Disponible</th>
+                  <th className="px-6 py-4">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {[
-                  { name: 'Gabriel Tech', role: 'Técnico', years: 3, total: 14, used: 5, balance: 9 },
-                  { name: 'Ana Admin', role: 'Finanzas', years: 4, total: 16, used: 16, balance: 0 },
-                  { name: 'Luis Martínez', role: 'Técnico', years: 1, total: 12, used: 0, balance: 12 },
-                ].map((emp, i) => (
-                  <tr key={i} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <p className="font-black text-sm text-gray-900">{emp.name}</p>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase">{emp.role}</p>
-                    </td>
-                    <td className="px-6 py-4 text-xs font-bold text-gray-600">{emp.years} Años</td>
-                    <td className="px-6 py-4 text-xs font-bold text-gray-600">{emp.total}</td>
-                    <td className="px-6 py-4 text-xs font-bold text-gray-600">{emp.used}</td>
-                    <td className="px-6 py-4">
-                      <span className={cn(
-                        "font-black text-sm px-3 py-1 rounded-lg",
-                        emp.balance > 0 ? "bg-green-100 text-green-700" : "bg-red-50 text-red-600"
-                      )}>{emp.balance} Días</span>
-                    </td>
-                  </tr>
-                ))}
+                {filteredEmployees.map((emp, i) => {
+                  const years = calculateYears(emp.joinDate);
+                  const lawDays = calculateDaysByLaw(years);
+                  return (
+                    <tr key={i} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <p className="font-black text-sm text-gray-900">{emp.name}</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase">{emp.department || 'Sin Depto.'}</p>
+                      </td>
+                      <td className="px-6 py-4 text-xs font-bold text-gray-600">{years} Años</td>
+                      <td className="px-6 py-4 text-xs font-bold text-gray-600">{lawDays} Días</td>
+                      <td className="px-6 py-4">
+                        <span className={cn(
+                          "font-black text-sm px-3 py-1 rounded-lg",
+                          emp.vacationBalance > 0 ? "bg-green-100 text-green-700" : "bg-red-50 text-red-600"
+                        )}>{emp.vacationBalance} Días</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button 
+                          onClick={() => openAdjustModal(emp)}
+                          className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-primary transition-colors"
+                          title="Ajuste Manual"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -154,6 +308,151 @@ export default function TimeOff() {
           </div>
         )}
       </div>
+
+      {/* MODAL: AJUSTE MANUAL DE BALANCE */}
+      {showAdjustModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-md overflow-hidden shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-300">
+            <div className="bg-primary p-8 text-white relative">
+              <div className="absolute top-0 right-0 p-8 opacity-10">
+                <Edit2 className="h-20 w-20" />
+              </div>
+              <h3 className="text-2xl font-black">Ajustar Saldo</h3>
+              <p className="text-primary-foreground/80 font-bold text-sm mt-1">{selectedEmp?.name}</p>
+            </div>
+            <div className="p-8 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Días Disponibles</label>
+                <input 
+                  type="number" 
+                  value={adjustDays}
+                  onChange={(e) => setAdjustDays(e.target.value)}
+                  className="w-full bg-gray-50 border-gray-200 rounded-2xl px-5 py-4 font-bold text-lg focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all"
+                  placeholder="Ej: 12"
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button 
+                  onClick={() => setShowAdjustModal(false)}
+                  className="flex-1 bg-gray-100 text-gray-600 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-200 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleSaveAdjustment}
+                  className="flex-1 bg-gray-900 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary transition-all shadow-lg shadow-gray-200"
+                >
+                  Guardar Cambios
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: NUEVA SOLICITUD MANUAL RH */}
+      {showManualModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl border border-gray-100 animate-in zoom-in-95 duration-300">
+            <div className="bg-gray-900 p-8 text-white relative">
+              <div className="absolute top-0 right-0 p-8 opacity-10">
+                <Palmtree className="h-20 w-20" />
+              </div>
+              <h3 className="text-2xl font-black">Nueva Solicitud RH</h3>
+              <p className="text-white/60 font-bold text-sm mt-1">Registra vacaciones de forma manual para un colaborador.</p>
+            </div>
+            <form onSubmit={handleManualRequest} className="p-8 space-y-5">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Seleccionar Colaborador</label>
+                <select 
+                  required
+                  value={formData.employeeId}
+                  onChange={(e) => setFormData({...formData, employeeId: e.target.value})}
+                  className="w-full bg-gray-50 border-gray-200 rounded-2xl px-5 py-4 font-bold text-sm focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all"
+                >
+                  <option value="">Seleccionar...</option>
+                  {employees.map(e => <option key={e.id} value={e.id}>{e.name} ({e.department})</option>)}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Fecha Inicio</label>
+                  <input 
+                    type="date" 
+                    required
+                    value={formData.startDate}
+                    onChange={(e) => setFormData({...formData, startDate: e.target.value})}
+                    className="w-full bg-gray-50 border-gray-200 rounded-2xl px-5 py-4 font-bold text-sm focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Fecha Fin</label>
+                  <input 
+                    type="date" 
+                    required
+                    value={formData.endDate}
+                    onChange={(e) => setFormData({...formData, endDate: e.target.value})}
+                    className="w-full bg-gray-50 border-gray-200 rounded-2xl px-5 py-4 font-bold text-sm focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Días a Descontar</label>
+                  <input 
+                    type="number" 
+                    required
+                    value={formData.days}
+                    onChange={(e) => setFormData({...formData, days: e.target.value})}
+                    className="w-full bg-gray-50 border-gray-200 rounded-2xl px-5 py-4 font-bold text-sm focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all"
+                    placeholder="Ej: 5"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Tipo</label>
+                  <select 
+                    value={formData.type}
+                    onChange={(e) => setFormData({...formData, type: e.target.value})}
+                    className="w-full bg-gray-50 border-gray-200 rounded-2xl px-5 py-4 font-bold text-sm focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all"
+                  >
+                    <option value="ANNUAL">Vacaciones Anuales</option>
+                    <option value="PERSONAL">Permiso Personal</option>
+                    <option value="SICK">Incapacidad</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Motivo / Notas</label>
+                <textarea 
+                  value={formData.reason}
+                  onChange={(e) => setFormData({...formData, reason: e.target.value})}
+                  className="w-full bg-gray-50 border-gray-200 rounded-2xl px-5 py-4 font-bold text-sm focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all h-24 resize-none"
+                  placeholder="Opcional..."
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button 
+                  type="button"
+                  onClick={() => setShowManualModal(false)}
+                  className="flex-1 bg-gray-100 text-gray-600 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-200 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 bg-primary text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+                >
+                  Registrar Solicitud
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

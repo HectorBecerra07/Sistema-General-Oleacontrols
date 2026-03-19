@@ -61,5 +61,39 @@ export const hrService = {
     });
     if (!response.ok) throw new Error('Error al guardar categoría');
     return response.json();
+  },
+
+  // --- VACACIONES ---
+  async getVacationStatus(employeeId) {
+    const response = await apiFetch(`/api/vacations?employeeId=${employeeId}`);
+    if (!response.ok) throw new Error('Error al obtener balance de vacaciones');
+    return response.json();
+  },
+
+  async requestVacation(requestData) {
+    const response = await apiFetch('/api/vacations', {
+      method: 'POST',
+      body: JSON.stringify(requestData)
+    });
+    if (!response.ok) throw new Error('Error al solicitar vacaciones');
+    return response.json();
+  },
+
+  async updateVacationRequest(requestId, status) {
+    const response = await apiFetch('/api/vacations', {
+      method: 'PUT',
+      body: JSON.stringify({ requestId, status })
+    });
+    if (!response.ok) throw new Error('Error al actualizar solicitud');
+    return response.json();
+  },
+
+  async updateVacationBalanceManual(employeeId, days) {
+    const response = await apiFetch('/api/vacations', {
+      method: 'POST',
+      body: JSON.stringify({ employeeId, days, manualAdjustment: true })
+    });
+    if (!response.ok) throw new Error('Error al actualizar balance manualmente');
+    return response.json();
   }
 };

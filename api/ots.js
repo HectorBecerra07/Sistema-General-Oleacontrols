@@ -278,6 +278,10 @@ export default async function handler(req, res) {
       if (isLocked !== undefined) updateData.isLocked = isLocked;
       if (deliveryActUrl !== undefined) updateData.deliveryActUrl = deliveryActUrl;
       
+      // Añadir soporte para técnicos auxiliares
+      if (data.assistantTechs !== undefined) updateData.assistantTechs = data.assistantTechs;
+      if (data.supportTechs !== undefined) updateData.supportTechs = data.supportTechs;
+      
       if (startedAt) updateData.startedAt = new Date(startedAt);
       if (finishedAt) updateData.finishedAt = new Date(finishedAt);
 

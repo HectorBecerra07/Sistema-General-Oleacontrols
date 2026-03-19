@@ -81,8 +81,14 @@ model Employee {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   credentials     Credentials?
-  
+
+  // Vacaciones
+  vacationBalance      Float    @default(0)
+  vacationLastRenewal  DateTime @default(now())
+  vacationRequests     VacationRequest[]
+
   // Relaciones Operativas
+
   techOTs         WorkOrder[] @relation("TechOTs")
   supervisorOTs   WorkOrder[] @relation("SupervisorOTs")
   createdOTs      WorkOrder[] @relation("CreatedOTs")
@@ -318,4 +324,18 @@ model Deal {
   probability   Int      @default(50)
   expectedClose DateTime?
   createdAt     DateTime @default(now())
+}
+
+model VacationRequest {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  startDate   DateTime
+  endDate     DateTime
+  days        Int
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  reason      String?
+  type        String   @default("ANNUAL") // ANNUAL, PERSONAL, etc.
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

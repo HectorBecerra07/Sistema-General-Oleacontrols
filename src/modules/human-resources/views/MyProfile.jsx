@@ -98,6 +98,7 @@ const PROFILE_TABS = [
 export default function MyProfile() {
   const { user, updateUser } = useAuth();
   const [employee, setEmployee] = useState(null);
+  const [vacationInfo, setVacationInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('OVERVIEW');
   const [isUploading, setIsUploading] = useState(false);
@@ -111,6 +112,14 @@ export default function MyProfile() {
       if (emp) {
         const details = await hrService.getEmployeeDetail(emp.id);
         setEmployee(details);
+        
+        // Fetch vacation status
+        try {
+          const vInfo = await hrService.getVacationStatus(emp.id);
+          setVacationInfo(vInfo);
+        } catch (err) {
+          console.error("Error fetching vacations:", err);
+        }
       } else {
         // Fallback for mock users or if not found in DB yet
         setEmployee({
@@ -126,6 +135,11 @@ export default function MyProfile() {
     };
     fetch();
   }, [user]);
+
+  const handleVacationRequest = async () => {
+    // Simple alert for now, can be improved with a modal
+    alert("Función de nueva solicitud disponible pronto en este panel.");
+  };
 
   const handleAvatarChange = async (e) => {
     const file = e.target.files[0];
@@ -300,8 +314,7 @@ export default function MyProfile() {
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <DashboardCard 
                         title="Días de Vacaciones" 
-                        value="12" 
-                        total="14" 
+                        value={vacationInfo?.vacationBalance ?? "0"} 
                         icon={Palmtree} 
                         color="text-emerald-500" 
                     />
@@ -323,7 +336,10 @@ export default function MyProfile() {
                     <h3 className="text-2xl font-black text-gray-900">Gestión de Tiempo</h3>
                     <p className="text-sm text-gray-500 font-medium mt-1">Consulta tus saldos y solicita nuevas vacaciones o permisos.</p>
                 </div>
-                <button className="bg-gray-900 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-primary transition-all shadow-xl">
+                <button 
+                  onClick={handleVacationRequest}
+                  className="bg-gray-900 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-primary transition-all shadow-xl"
+                >
                     Nueva Solicitud
                 </button>
             </div>
@@ -331,48 +347,53 @@ export default function MyProfile() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-white rounded-3xl p-6 border shadow-sm">
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Bolsa Actual (Días)</p>
-                <p className="text-4xl font-black text-gray-900 mt-2">12 <span className="text-sm text-gray-400">/ 14</span></p>
+                <p className="text-4xl font-black text-gray-900 mt-2">{vacationInfo?.vacationBalance ?? 0}</p>
                 <div className="w-full bg-gray-100 h-2 rounded-full mt-4 overflow-hidden">
-                  <div className="bg-emerald-500 h-full rounded-full" style={{ width: '85%' }} />
+                  <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${Math.min(100, (vacationInfo?.vacationBalance / 20) * 100)}%` }} />
                 </div>
               </div>
               <div className="bg-white rounded-3xl p-6 border shadow-sm">
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">En Proceso de Firma</p>
-                <p className="text-4xl font-black text-amber-500 mt-2">1</p>
+                <p className="text-4xl font-black text-amber-500 mt-2">
+                  {vacationInfo?.vacationRequests?.filter(r => r.status === 'PENDING').length ?? 0}
+                </p>
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-4">Esperando aprobación</p>
               </div>
               <div className="bg-white rounded-3xl p-6 border shadow-sm">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Próximo Aniversario</p>
-                <p className="text-xl font-black text-gray-900 mt-2">15 Ene 2026</p>
-                <p className="text-[10px] font-bold text-primary uppercase tracking-widest mt-4">+2 días adicionales</p>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Última Renovación</p>
+                <p className="text-xl font-black text-gray-900 mt-2">
+                  {vacationInfo?.vacationLastRenewal ? new Date(vacationInfo.vacationLastRenewal).toLocaleDateString() : 'No registrada'}
+                </p>
+                <p className="text-[10px] font-bold text-primary uppercase tracking-widest mt-4">Aniversario Laboral</p>
               </div>
             </div>
 
             <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">
               <h3 className="font-black text-gray-900 uppercase text-xs tracking-widest mb-6">Mis Solicitudes Recientes</h3>
               <div className="space-y-4">
-                {[
-                  { date: '12 May 2025', type: 'Vacaciones (5 días)', status: 'APROBADO', by: 'Ana Admin' },
-                  { date: '15 Jun 2025', type: 'Permiso Especial (Cita Médica)', status: 'PENDIENTE', by: 'RH' }
-                ].map((inc, i) => (
-                  <div key={i} className="flex justify-between items-center p-4 border rounded-2xl bg-gray-50/50 hover:bg-white transition-all">
-                    <div className="flex items-center gap-4">
-                        <div className={cn(
-                            "p-3 rounded-xl border bg-white",
-                            inc.status === 'PENDIENTE' ? "text-amber-500 border-amber-100" : "text-emerald-500 border-emerald-100"
-                        )}>
-                            <Clock className="h-5 w-5" />
-                        </div>
-                        <div>
-                            <p className="text-sm font-black text-gray-900">{inc.type}</p>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{inc.date} • Estado: {inc.status}</p>
-                        </div>
+                {vacationInfo?.vacationRequests?.length > 0 ? (
+                  vacationInfo.vacationRequests.map((req, i) => (
+                    <div key={i} className="flex justify-between items-center p-4 border rounded-2xl bg-gray-50/50 hover:bg-white transition-all">
+                      <div className="flex items-center gap-4">
+                          <div className={cn(
+                              "p-3 rounded-xl border bg-white",
+                              req.status === 'PENDING' ? "text-amber-500 border-amber-100" : 
+                              req.status === 'APPROVED' ? "text-emerald-500 border-emerald-100" : "text-red-500 border-red-100"
+                          )}>
+                              <Palmtree className="h-5 w-5" />
+                          </div>
+                          <div>
+                              <p className="text-sm font-black text-gray-900">{req.type} ({req.days} días)</p>
+                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                {new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()} • Estado: {req.status}
+                              </p>
+                          </div>
+                      </div>
                     </div>
-                    <button className="text-[10px] font-black text-gray-400 hover:text-primary uppercase tracking-widest px-4 py-2 rounded-lg border bg-white shadow-sm transition-all">
-                        Ver Detalle
-                    </button>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-center text-gray-400 font-bold py-8 italic">No tienes solicitudes de vacaciones registradas.</p>
+                )}
               </div>
             </div>
           </div>
