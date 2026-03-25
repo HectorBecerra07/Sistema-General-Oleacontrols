@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import {
   ClipboardList, Search, MoreHorizontal, Clock, Eye,
   X, Send, Trophy, Building2, User, Trash2, AlertCircle, FileText,
-  MapPin, Loader2, Layers
+  MapPin, Loader2, Layers, ChevronDown, ChevronUp, Receipt, TrendingDown,
+  DollarSign
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents, Popup } from 'react-leaflet';
 import L from 'leaflet';
@@ -48,7 +49,11 @@ function ChangeView({ center }) {
 export default function SupervisorOTs() {
   const { user: currentUser } = useAuth();
   const navigate = useNavigate();
+
   const [ots, setOts] = useState([]);
+  const [expandedOtId, setExpandedOtId] = useState(null);
+  const [otFinancials, setOtFinancials] = useState({});
+  const [loadingFinancials, setLoadingFinancials] = useState({});
   const [clients, setClients] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [availableTechs, setAvailableTechs] = useState([]);
@@ -337,6 +342,26 @@ export default function SupervisorOTs() {
     doc.save(`AER_${ot.otNumber || ot.id}.pdf`);
   };
 
+  const toggleOtAccordion = async (otId) => {
+    if (expandedOtId === otId) {
+      setExpandedOtId(null);
+      return;
+    }
+
+    setExpandedOtId(otId);
+
+    // Solo cargar si no lo tenemos o para refrescar
+    setLoadingFinancials(prev => ({ ...prev, [otId]: true }));
+    try {
+      const financials = await otService.getOTFinancials(otId);
+      setOtFinancials(prev => ({ ...prev, [otId]: financials }));
+    } catch (err) {
+      console.error("Error cargando financieros:", err);
+    } finally {
+      setLoadingFinancials(prev => ({ ...prev, [otId]: false }));
+    }
+  };
+
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (isSaving) return;
@@ -532,7 +557,8 @@ export default function SupervisorOTs() {
           <table className="w-full text-left min-w-[900px]">
             <thead className="bg-white border-b">
               <tr className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                <th className="px-8 py-5">Folio / Prioridad</th>
+                <th className="px-4 py-5 w-10"></th>
+                <th className="px-4 py-5">Folio / Prioridad</th>
                 <th className="px-6 py-5">Servicio y Cliente</th>
                 <th className="px-6 py-5">Técnico / Fondo</th>
                 <th className="px-6 py-5">Estado</th>
@@ -541,94 +567,223 @@ export default function SupervisorOTs() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filteredOts.map((ot) => (
-                <tr key={ot.id} className="hover:bg-gray-50/30 transition-colors group">
-                  <td className="px-8 py-5">
-                    <p className="font-black text-sm text-gray-900">{ot.otNumber}</p>
-                    <span
-                      className={cn(
-                        "text-[8px] font-black px-1.5 py-0.5 rounded uppercase border",
-                        ot.priority === 'HIGH'
-                          ? "bg-red-50 text-red-600 border-red-100"
-                          : "bg-blue-50 text-blue-600 border-blue-100"
+                <React.Fragment key={ot.id}>
+                  <tr className={cn(
+                    "hover:bg-gray-50/30 transition-colors group cursor-pointer",
+                    expandedOtId === ot.id && "bg-blue-50/20"
+                  )} onClick={() => toggleOtAccordion(ot.id)}>
+                    <td className="px-4 py-5 text-center">
+                      {expandedOtId === ot.id ? (
+                        <ChevronUp className="h-4 w-4 text-primary" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-gray-300 group-hover:text-primary transition-colors" />
                       )}
-                    >
-                      {ot.priority}
-                    </span>
-                  </td>
-                  <td className="px-6 py-5">
-                    <p className="font-bold text-sm text-gray-700 leading-tight">{ot.title}</p>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">{ot.clientName || ot.client}</p>
-                  </td>
-                  <td className="px-6 py-5">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-black text-xs uppercase">
-                        {ot.leadTechName?.charAt(0) || 'T'}
-                      </div>
-                      <div>
-                        <p className="text-xs font-black text-gray-700 uppercase">{ot.leadTechName || 'Pendiente'}</p>
-                        <div className="flex flex-col gap-0.5 mt-0.5">
-                          <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">
-                            Fondo: ${ot.assignedFunds?.toLocaleString()}
-                          </p>
-                          {ot.assignedByName && (
-                            <p className="text-[8px] text-indigo-500 font-black uppercase tracking-tighter flex items-center gap-1">
-                              <Send className="h-2 w-2" /> {ot.assignedByName}
+                    </td>
+                    <td className="px-4 py-5">
+                      <p className="font-black text-sm text-gray-900">{ot.otNumber}</p>
+                      <span
+                        className={cn(
+                          "text-[8px] font-black px-1.5 py-0.5 rounded uppercase border",
+                          ot.priority === 'HIGH'
+                            ? "bg-red-50 text-red-600 border-red-100"
+                            : "bg-blue-50 text-blue-600 border-blue-100"
+                        )}
+                      >
+                        {ot.priority}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5">
+                      <p className="font-bold text-sm text-gray-700 leading-tight">{ot.title}</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">{ot.clientName || ot.client}</p>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-black text-xs uppercase">
+                          {ot.leadTechName?.charAt(0) || 'T'}
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-gray-700 uppercase">{ot.leadTechName || 'Pendiente'}</p>
+                          <div className="flex flex-col gap-0.5 mt-0.5">
+                            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">
+                              Fondo: ${ot.assignedFunds?.toLocaleString()}
                             </p>
-                          )}
+                            {ot.assignedByName && (
+                              <p className="text-[8px] text-indigo-500 font-black uppercase tracking-tighter flex items-center gap-1">
+                                <Send className="h-2 w-2" /> {ot.assignedByName}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-5">
-                    <span
-                      className={cn(
-                        "text-[9px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest border shadow-sm",
-                        ot.status === 'COMPLETED'
-                          ? "bg-emerald-500 text-white border-emerald-600 shadow-emerald-100"
-                          : ot.status === 'IN_PROGRESS'
-                            ? "bg-amber-50 text-amber-700 border-amber-100 animate-pulse"
-                            : "bg-gray-50 text-gray-400 border-gray-100"
-                      )}
-                    >
-                      {ot.status}
-                    </span>
-                  </td>
-                  <td className="px-8 py-5 text-right">
-                    <div className="flex justify-end gap-2">
-                      {ot.status === 'COMPLETED' && (
-                        <button
-                          onClick={() => {
-                            if (ot.deliveryActUrl) {
-                              window.open(ot.deliveryActUrl, '_blank');
-                            } else {
-                              handleExportAER(ot);
-                            }
-                          }}
-                          className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-100 border border-emerald-100 transition-all shadow-sm"
-                        >
-                          <FileText className="h-4 w-4" /> {ot.deliveryActUrl ? 'Ver Acta' : 'Generar Acta'}
+                    </td>
+                    <td className="px-6 py-5">
+                      <span
+                        className={cn(
+                          "text-[9px] font-black px-3 py-1.5 rounded-xl uppercase tracking-widest border shadow-sm",
+                          ot.status === 'COMPLETED'
+                            ? "bg-emerald-500 text-white border-emerald-600 shadow-emerald-100"
+                            : ot.status === 'IN_PROGRESS'
+                              ? "bg-amber-50 text-amber-700 border-amber-100 animate-pulse"
+                              : "bg-gray-50 text-gray-400 border-gray-100"
+                        )}
+                      >
+                        {ot.status}
+                      </span>
+                    </td>
+                    <td className="px-8 py-5 text-right">
+                      <div className="flex justify-end gap-2" onClick={e => e.stopPropagation()}>
+                        {ot.status === 'COMPLETED' && (
+                          <button
+                            onClick={() => {
+                              if (ot.deliveryActUrl) {
+                                window.open(ot.deliveryActUrl, '_blank');
+                              } else {
+                                handleExportAER(ot);
+                              }
+                            }}
+                            className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-100 border border-emerald-100 transition-all shadow-sm"
+                          >
+                            <FileText className="h-4 w-4" /> {ot.deliveryActUrl ? 'Ver Acta' : 'Generar Acta'}
+                          </button>
+                        )}
+                        <button onClick={() => navigate(`/ots/${ot.id}`)} className="p-2 text-gray-400 hover:text-primary transition-all">
+                          <Eye className="h-4 w-4" />
                         </button>
-                      )}
-                      <button onClick={() => navigate(`/ots/${ot.id}`)} className="p-2 text-gray-400 hover:text-primary transition-all">
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button 
-                        onClick={() => openEditModal(ot)} 
-                        disabled={ot.status === 'COMPLETED'}
-                        className={cn("p-2 transition-all", ot.status === 'COMPLETED' ? "text-gray-200 cursor-not-allowed" : "text-gray-400 hover:text-primary")}
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </button>
+                        <button 
+                          onClick={() => openEditModal(ot)} 
+                          disabled={ot.status === 'COMPLETED'}
+                          className={cn("p-2 transition-all", ot.status === 'COMPLETED' ? "text-gray-200 cursor-not-allowed" : "text-gray-400 hover:text-primary")}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
 
-                      <button
-                        onClick={() => { setOtToDelete(ot); setIsDeleteModalOpen(true); }}
-                        className="p-2 text-gray-400 hover:text-red-500 transition-all"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                        <button
+                          onClick={() => { setOtToDelete(ot); setIsDeleteModalOpen(true); }}
+                          className="p-2 text-gray-400 hover:text-red-500 transition-all"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  
+                  {/* Fila de Acordeón: Gastos */}
+                  {expandedOtId === ot.id && (
+                    <tr>
+                      <td colSpan="6" className="px-8 py-0 bg-gray-50/50">
+                        <div className="py-6 animate-in slide-in-from-top-4 duration-300">
+                          {loadingFinancials[ot.id] ? (
+                            <div className="flex flex-col items-center py-8 gap-3">
+                              <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Cargando desglose financiero...</p>
+                            </div>
+                          ) : otFinancials[ot.id] ? (
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                              {/* Resumen Financiero */}
+                              <div className="lg:col-span-1 space-y-4">
+                                <div className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm">
+                                  <div className="flex items-center gap-3 mb-4">
+                                    <div className="h-8 w-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                                      <DollarSign className="h-4 w-4" />
+                                    </div>
+                                    <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-widest">Estado de Cuenta OT</h4>
+                                  </div>
+                                  <div className="space-y-3">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-[9px] font-bold text-gray-400 uppercase">Presupuesto:</span>
+                                      <span className="text-sm font-black text-gray-900">${otFinancials[ot.id].assignedFunds.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-[9px] font-bold text-gray-400 uppercase">Gastos Reales:</span>
+                                      <span className="text-sm font-black text-red-500">-${otFinancials[ot.id].totalSpent.toLocaleString()}</span>
+                                    </div>
+                                    <div className="pt-2 border-t flex justify-between items-center">
+                                      <span className="text-[9px] font-black text-gray-600 uppercase">Balance Actual:</span>
+                                      <span className={cn(
+                                        "text-lg font-black",
+                                        otFinancials[ot.id].balance < 0 ? "text-red-600" : "text-emerald-600"
+                                      )}>
+                                        ${otFinancials[ot.id].balance.toLocaleString()}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  
+                                  {otFinancials[ot.id].isOverLimit && (
+                                    <div className="mt-4 p-3 bg-red-50 rounded-xl border border-red-100 flex items-center gap-2">
+                                      <AlertCircle className="h-4 w-4 text-red-500" />
+                                      <p className="text-[8px] font-black text-red-600 uppercase leading-tight">
+                                        Excedente detectado. Requiere auditoría.
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {/* Lista de Gastos */}
+                              <div className="lg:col-span-2">
+                                <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
+                                  <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <Receipt className="h-4 w-4 text-primary" />
+                                      <span className="text-[9px] font-black text-gray-900 uppercase tracking-widest">Desglose de Gastos</span>
+                                    </div>
+                                    <span className="bg-white px-2 py-1 rounded-lg text-[8px] font-black text-gray-400 border border-gray-100 uppercase">
+                                      {otFinancials[ot.id].expenses.length} registros
+                                    </span>
+                                  </div>
+                                  
+                                  <div className="max-h-[200px] overflow-y-auto custom-scrollbar">
+                                    {otFinancials[ot.id].expenses.length === 0 ? (
+                                      <div className="py-8 text-center">
+                                        <p className="text-[9px] font-bold text-gray-400 uppercase italic">No hay gastos registrados en esta OT.</p>
+                                      </div>
+                                    ) : (
+                                      <table className="w-full text-left">
+                                        <thead className="bg-gray-50/50 sticky top-0">
+                                          <tr className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">
+                                            <th className="px-4 py-2">Fecha</th>
+                                            <th className="px-4 py-2">Categoría</th>
+                                            <th className="px-4 py-2">Concepto</th>
+                                            <th className="px-4 py-2 text-right">Monto</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-50">
+                                          {otFinancials[ot.id].expenses.map((expense) => (
+                                            <tr key={expense.id} className="hover:bg-gray-50/50">
+                                              <td className="px-4 py-3 text-[10px] font-bold text-gray-500 whitespace-nowrap">
+                                                {new Date(expense.date).toLocaleDateString()}
+                                              </td>
+                                              <td className="px-4 py-3">
+                                                <span className="text-[8px] font-black px-1.5 py-0.5 bg-gray-100 rounded text-gray-600 uppercase">
+                                                  {expense.category}
+                                                </span>
+                                              </td>
+                                              <td className="px-4 py-3">
+                                                <p className="text-[10px] font-black text-gray-900 leading-tight uppercase line-clamp-1">{expense.description || expense.concept}</p>
+                                                <p className="text-[8px] text-gray-400 font-bold uppercase">{expense.type}</p>
+                                              </td>
+                                              <td className="px-4 py-3 text-right">
+                                                <p className="text-[11px] font-black text-gray-900">${expense.amount.toLocaleString()}</p>
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="py-8 text-center">
+                              <p className="text-[10px] font-black text-red-400 uppercase">Error al cargar datos financieros.</p>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>

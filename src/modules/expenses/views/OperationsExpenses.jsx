@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Receipt, Search, Filter, Download, ArrowUpDown, CheckCircle2, XCircle, Clock, 
   ChevronRight, MapPin, Calendar, DollarSign, TrendingUp, FileText, MessageSquare,
-  PieChart, BarChart3, Users, Wallet, AlertCircle, Fuel, Utensils, Home, Settings, Package, MoreHorizontal, X, ImageIcon
+  PieChart, BarChart3, Users, Wallet, AlertCircle, Fuel, Utensils, Home, Settings, Package, MoreHorizontal, X, ImageIcon,
+  ChevronDown, ChevronUp
 } from 'lucide-react';
 import { expenseService } from '@/api/expenseService';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,7 @@ const CATEGORY_ICONS = {
 export default function OperationsExpenses() {
   const { user } = useAuth();
   const [expenses, setExpenses] = useState([]);
+  const [expandedOts, setExpandedOts] = useState({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -323,76 +325,120 @@ export default function OperationsExpenses() {
                 <tr><td colSpan="6" className="px-8 py-20 text-center text-gray-400 italic font-bold animate-pulse uppercase tracking-[0.2em]">Sincronizando Historial de Gastos...</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan="6" className="px-8 py-20 text-center text-gray-400 italic font-bold uppercase text-xs">No se encontraron registros.</td></tr>
-              ) : filtered.map((exp) => (
-                <tr key={exp.id} className="hover:bg-gray-50/50 transition-colors group">
-                  <td className="px-8 py-5">
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-xs uppercase">
-                        {exp.employee?.name?.charAt(0) || 'U'}
-                      </div>
-                      <div>
-                        <p className="text-sm font-black text-gray-900 uppercase leading-none">{exp.employee?.name || 'Técnico'}</p>
-                        <p className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-widest">{new Date(exp.createdAt).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-5">
-                    <p className="text-sm font-bold text-gray-900 leading-tight">{exp.description}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[9px] font-black text-primary bg-primary/5 px-1.5 py-0.5 rounded border border-primary/10 tracking-widest">
-                        #{exp.otId}
-                      </span>
-                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{exp.category}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-5">
-                    {exp.comment ? (
-                        <div className="flex items-start gap-2 max-w-[200px]">
-                            <MessageSquare className="h-3 w-3 text-blue-400 shrink-0 mt-0.5" />
-                            <p className="text-[10px] font-medium text-gray-500 italic leading-relaxed">"{exp.comment}"</p>
+              ) : Object.entries(filtered.reduce((acc, exp) => {
+                  const ot = exp.otId || 'SIN_OT';
+                  if (!acc[ot]) acc[ot] = [];
+                  acc[ot].push(exp);
+                  return acc;
+                }, {})).map(([otId, otExpenses]) => (
+                <React.Fragment key={otId}>
+                  {/* OT Header Row */}
+                  <tr 
+                    onClick={() => setExpandedOts(prev => ({ ...prev, [otId]: !prev[otId] }))}
+                    className="bg-gray-50/80 hover:bg-gray-100/80 cursor-pointer transition-all border-l-4 border-l-primary"
+                  >
+                    <td colSpan="3" className="px-8 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "p-1 rounded-lg transition-transform duration-300",
+                          expandedOts[otId] ? "rotate-180" : ""
+                        )}>
+                          <ChevronDown className="h-4 w-4 text-primary" />
                         </div>
-                    ) : (
-                        <span className="text-[9px] font-bold text-gray-300 uppercase italic">Sin observaciones</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-5 text-right">
-                    <p className="text-sm font-black text-gray-900">${exp.amount.toLocaleString()}</p>
-                    <p className="text-[9px] text-gray-400 font-black tracking-widest">MXN</p>
-                  </td>
-                  <td className="px-6 py-5">
-                    <span className={cn(
-                      "text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest border",
-                      exp.status === 'APPROVED' ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
-                      exp.status === 'PENDING' ? "bg-blue-50 text-blue-700 border-blue-100" :
-                      exp.status === 'REJECTED' ? "bg-red-50 text-red-700 border-red-100" : "bg-gray-100 text-gray-600 border-gray-200"
-                    )}>
-                      {exp.status === 'APPROVED' ? 'Aprobado' : exp.status === 'REJECTED' ? 'Rechazado' : 'Pendiente'}
-                    </span>
-                  </td>
-                  <td className="px-8 py-5 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button 
-                        onClick={() => navigate(`/ots/${exp.workOrder?.id || exp.otId}`)}
-                        className="p-2 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-all"
-                        title="Ver Orden Relacionada"
-                      >
-                        <FileText className="h-4 w-4" />
-                      </button>
-                      <button 
-                        onClick={() => exp.receipt ? setSelectedImage(exp.receipt) : alert("Este gasto no tiene evidencia digital cargada.")}
-                        className={cn(
-                            "p-2 rounded-xl transition-all",
-                            exp.receipt 
-                                ? "text-primary bg-primary/5 hover:bg-primary/10 shadow-sm" 
-                                : "text-gray-300 cursor-not-allowed"
+                        <span className="text-[11px] font-black text-gray-900 uppercase tracking-[0.2em]">
+                          Orden de Trabajo: {otId === 'SIN_OT' ? 'Gastos Generales' : `#${otId}`}
+                        </span>
+                        <span className="text-[9px] font-bold text-gray-400 uppercase bg-white px-2 py-0.5 rounded-full border border-gray-200">
+                          {otExpenses.length} Gastos
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <p className="text-xs font-black text-primary uppercase tracking-tighter">Total OT</p>
+                      <p className="text-sm font-black text-gray-900">
+                        ${otExpenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
+                      </p>
+                    </td>
+                    <td colSpan="2" className="px-6 py-4">
+                        <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden max-w-[100px]">
+                            <div className="h-full bg-primary rounded-full" style={{ width: '100%' }} />
+                        </div>
+                    </td>
+                  </tr>
+
+                  {/* Expenses for this OT (Accordion Content) */}
+                  {expandedOts[otId] && otExpenses.map((exp) => (
+                    <tr key={exp.id} className="hover:bg-blue-50/20 transition-colors group animate-in slide-in-from-top-2 duration-300">
+                      <td className="px-8 py-5 border-l-4 border-l-transparent">
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-xs uppercase">
+                            {exp.employee?.name?.charAt(0) || 'U'}
+                          </div>
+                          <div>
+                            <p className="text-sm font-black text-gray-900 uppercase leading-none">{exp.employee?.name || 'Técnico'}</p>
+                            <p className="text-[9px] font-bold text-gray-400 mt-1 uppercase tracking-widest">{new Date(exp.createdAt).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <p className="text-sm font-bold text-gray-900 leading-tight">{exp.description}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[9px] font-black text-primary bg-primary/5 px-1.5 py-0.5 rounded border border-primary/10 tracking-widest">
+                            #{exp.otId}
+                          </span>
+                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{exp.category}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        {exp.comment ? (
+                            <div className="flex items-start gap-2 max-w-[200px]">
+                                <MessageSquare className="h-3 w-3 text-blue-400 shrink-0 mt-0.5" />
+                                <p className="text-[10px] font-medium text-gray-500 italic leading-relaxed">"{exp.comment}"</p>
+                            </div>
+                        ) : (
+                            <span className="text-[9px] font-bold text-gray-300 uppercase italic">Sin observaciones</span>
                         )}
-                        title={exp.receipt ? "Ver Evidencia" : "Sin Evidencia"}
-                      >
-                        <Receipt className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                      </td>
+                      <td className="px-6 py-5 text-right">
+                        <p className="text-sm font-black text-gray-900">${exp.amount.toLocaleString()}</p>
+                        <p className="text-[9px] text-gray-400 font-black tracking-widest">MXN</p>
+                      </td>
+                      <td className="px-6 py-5">
+                        <span className={cn(
+                          "text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-widest border",
+                          exp.status === 'APPROVED' ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
+                          exp.status === 'PENDING' ? "bg-blue-50 text-blue-700 border-blue-100" :
+                          exp.status === 'REJECTED' ? "bg-red-50 text-red-700 border-red-100" : "bg-gray-100 text-gray-600 border-gray-200"
+                        )}>
+                          {exp.status === 'APPROVED' ? 'Aprobado' : exp.status === 'REJECTED' ? 'Rechazado' : 'Pendiente'}
+                        </span>
+                      </td>
+                      <td className="px-8 py-5 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button 
+                            onClick={() => navigate(`/ots/${exp.workOrder?.id || exp.otId}`)}
+                            className="p-2 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-all"
+                            title="Ver Orden Relacionada"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </button>
+                          <button 
+                            onClick={() => exp.receipt ? setSelectedImage(exp.receipt) : alert("Este gasto no tiene evidencia digital cargada.")}
+                            className={cn(
+                                "p-2 rounded-xl transition-all",
+                                exp.receipt 
+                                    ? "text-primary bg-primary/5 hover:bg-primary/10 shadow-sm" 
+                                    : "text-gray-300 cursor-not-allowed"
+                            )}
+                            title={exp.receipt ? "Ver Evidencia" : "Sin Evidencia"}
+                          >
+                            <Receipt className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </React.Fragment>
               ))}
             </tbody>
           </table>
