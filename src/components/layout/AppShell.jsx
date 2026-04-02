@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  ClipboardList, 
-  Receipt, 
-  Users, 
-  GraduationCap, 
+import {
+  LayoutDashboard,
+  ClipboardList,
+  Receipt,
+  Users,
+  GraduationCap,
   Briefcase,
   Menu,
   X,
@@ -16,7 +16,9 @@ import {
   User as UserIcon,
   BarChart3,
   Wallet,
-  Target
+  Target,
+  Users2,
+  FileText
 } from 'lucide-react';
 import { useAuth, ROLES } from '@/store/AuthContext';
 import { useTenant } from '@/store/TenantContext';
@@ -86,11 +88,25 @@ const navItems = [
     icon: Users, 
     roles: [ROLES.ADMIN, ROLES.HR] 
   },
-  { 
-    name: 'Ventas y CRM', 
-    path: '/crm', 
-    icon: Briefcase, 
-    roles: [ROLES.ADMIN, ROLES.SALES] 
+  {
+    name: 'Ventas y CRM',
+    path: '/crm',
+    icon: Briefcase,
+    roles: [ROLES.ADMIN, ROLES.SALES]
+  },
+  {
+    name: 'Clientes',
+    path: '/crm/clients',
+    icon: Users2,
+    roles: [ROLES.ADMIN, ROLES.SALES],
+    getName: () => 'Clientes'
+  },
+  {
+    name: 'Cotizaciones',
+    path: '/crm/quotes',
+    icon: FileText,
+    roles: [ROLES.ADMIN, ROLES.SALES],
+    getName: () => 'Cotizaciones'
   },
   {
     name: 'Mis Ventas / CRM',
@@ -168,7 +184,9 @@ export default function AppShell({ children }) {
             {filteredNavItems.map((item) => {
               const itemPath = item.path;
               const itemName = item.getName ? item.getName(user) : item.name;
-              const isActive = location.pathname === itemPath;
+              const isActive = itemPath === '/'
+                ? location.pathname === '/'
+                : location.pathname === itemPath;
               return (
                 <Link key={item.name} to={itemPath} onClick={() => setSidebarOpen(false)}
                   className={cn(

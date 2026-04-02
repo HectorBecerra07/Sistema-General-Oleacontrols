@@ -1,33 +1,33 @@
 import React from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Target, 
-  Users2, 
-  FileText, 
-  ShoppingCart, 
-  Receipt, 
-  TrendingUp, 
-  Settings
+import {
+  LayoutDashboard,
+  Target,
+  Users2,
+  FileText,
+  ShoppingCart,
+  Receipt,
+  TrendingUp,
+  Settings,
+  Briefcase
 } from 'lucide-react';
 import { useAuth, ROLES } from '@/store/AuthContext';
 import { cn } from '@/lib/utils';
 
 const crmNavItems = [
-  { name: 'Dashboard Ventas', path: '/crm', icon: LayoutDashboard },
+  { name: 'Pipeline / Tratos', path: '/crm/deals', icon: Briefcase },
   { name: 'Prospectos (Leads)', path: '/crm/leads', icon: Target },
   { name: 'Clientes (Cuentas)', path: '/crm/clients', icon: Users2 },
   { name: 'Presupuestos', path: '/crm/quotes', icon: FileText },
   { name: 'Órdenes de Compra', path: '/crm/orders', icon: ShoppingCart },
   { name: 'Facturación', path: '/crm/invoices', icon: Receipt },
-  { name: 'Reportes CRM', path: '/crm/reports', icon: TrendingUp },
-  { name: 'Configuración', path: '/crm/settings', icon: Settings },
 ];
 
 export default function CRMLayout() {
   const location = useLocation();
   const { user } = useAuth();
   const isSalesPerson = user?.role === ROLES.ADMIN || user?.role === ROLES.SALES;
+  const isFullHeight = ['/crm', '/crm/deals', '/crm/clients'].includes(location.pathname);
 
   return (
     <div className="flex h-[calc(100vh-4rem)] -m-4 md:-m-8 bg-gray-50">
@@ -63,12 +63,21 @@ export default function CRMLayout() {
 
       {/* CRM Content Area */}
       <main className={cn(
-        "flex-1 overflow-y-auto bg-gray-50/50 p-4 md:p-8",
+        "flex-1 overflow-hidden flex flex-col bg-gray-50/50",
         !isSalesPerson && "w-full"
       )}>
-        <div className="max-w-6xl mx-auto pb-20">
-          <Outlet />
-        </div>
+        {/* Vistas fullscreen → sin padding ni max-width */}
+        {isFullHeight ? (
+          <div className="flex-1 overflow-hidden">
+            <Outlet />
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto p-4 md:p-8">
+            <div className="max-w-6xl mx-auto pb-20">
+              <Outlet />
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

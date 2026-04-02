@@ -97,6 +97,7 @@ model Employee {
 
   // --- RELACIONES CRM OPUESTAS ---
   assignedLeads   Lead[]      // Leads asignados a este empleado
+  assignedDeals   Deal[]      @relation("DealAssignee")
   quotesCreated   Quote[]     @relation("QuoteCreator")
   quotesSold      Quote[]     @relation("QuoteSeller")
 
@@ -320,13 +321,46 @@ model Quote {
 model Deal {
   id            String   @id @default(cuid())
   title         String
-  value         Float
-  clientId      String
-  client        Client   @relation(fields: [clientId], references: [id])
-  stage         String   @default("DISCOVERY")
-  probability   Int      @default(50)
+  value         Float    @default(0)
+
+  // Contacto principal
+  contactName   String?
+  contactEmail  String?
+  contactPhone  String?
+  company       String?
+
+  // Relación con cliente registrado (opcional)
+  clientId      String?
+  client        Client?  @relation(fields: [clientId], references: [id])
+
+  // Vendedor asignado
+  assignedToId  String?
+  assignedTo    Employee? @relation("DealAssignee", fields: [assignedToId], references: [id])
+
+  // Pipeline
+  stage         String   @default("QUALIFICATION")
+  probability   Int      @default(10)
   expectedClose DateTime?
+  source        String?  @default("Web")
+
+  // Notas y descripción
+  description   String?
+  notes         String?
+
   createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  activities    DealActivity[]
+}
+
+model DealActivity {
+  id         String   @id @default(cuid())
+  dealId     String
+  deal       Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  type       String   @default("NOTE") // NOTE, CALL, EMAIL, MEETING, TASK
+  content    String
+  authorName String?
+  createdAt  DateTime @default(now())
 }
 
 model VacationRequest {

@@ -36,6 +36,7 @@ import RewardManager from '@/modules/human-resources/views/RewardManager';
 import SurveyManager from '@/modules/human-resources/views/SurveyManager';
 import CRMLayout from '@/modules/crm/components/CRMLayout';
 import SalesPipeline from '@/modules/crm/views/SalesPipeline';
+import DealsKanban from '@/modules/crm/views/DealsKanban';
 import ClientsList from '@/modules/crm/views/ClientsList';
 import QuotesList from '@/modules/crm/views/QuotesList';
 import IndirectSales from '@/modules/crm/views/IndirectSales';
@@ -67,7 +68,7 @@ const DashboardSelector = () => {
     case ROLES.HR:
       return <HRDashboard />;
     case ROLES.SALES:
-      return <SalesPipeline />;
+      return <DealsKanban />;
     case ROLES.COLLABORATOR:
       return <MyProfile />;
     default:
@@ -128,7 +129,8 @@ export default function AppRouter() {
 
         {/* Módulo CRM */}
         <Route path="/crm" element={<ProtectedRoute><CRMLayout /></ProtectedRoute>}>
-          <Route index element={<SalesPipeline />} />
+          <Route index element={<DealsKanban />} />
+          <Route path="deals" element={<DealsKanban />} />
           <Route path="leads" element={<SalesPipeline />} />
           <Route path="clients" element={<ClientsList />} />
           <Route path="quotes" element={<QuotesList />} />
