@@ -9,6 +9,8 @@ export default defineConfig({
     seed: 'node prisma/seed.js'
   },
   datasource: {
-    url: process.env.DATABASE_URL
+    // DIRECT_URL: conexión directa puerto 5432 — solo para migraciones CLI
+    // DATABASE_URL: pooler puerto 6543 — para queries en runtime (prisma.js)
+    url: process.env.DIRECT_URL ?? process.env.DATABASE_URL
   }
 })
