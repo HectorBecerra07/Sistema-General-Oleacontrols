@@ -18,7 +18,8 @@ import {
   Wallet,
   Target,
   Users2,
-  FileText
+  FileText,
+  Sliders
 } from 'lucide-react';
 import { useAuth, ROLES } from '@/store/AuthContext';
 import { useTenant } from '@/store/TenantContext';
@@ -107,6 +108,13 @@ const navItems = [
     icon: FileText,
     roles: [ROLES.ADMIN, ROLES.SALES],
     getName: () => 'Cotizaciones'
+  },
+  {
+    name: 'Config. Pipeline',
+    path: '/crm/settings',
+    icon: Sliders,
+    roles: [ROLES.ADMIN, ROLES.SALES],
+    getName: () => 'Config. Pipeline'
   },
   {
     name: 'Mis Ventas / CRM',

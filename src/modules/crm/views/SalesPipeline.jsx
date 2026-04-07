@@ -1,23 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Plus, MoreVertical, Mail, Phone, Building2, 
+import {
+  Plus, MoreVertical, Mail, Phone, Building2,
   DollarSign, ArrowRight, Target, X, CheckCircle2,
-  TrendingUp, Activity, Trash2
+  TrendingUp, Activity, Trash2, Sliders
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { apiFetch } from '@/lib/api';
 
-const STAGES = [
-  { id: 'PROSPECT', label: 'Prospección', color: 'bg-blue-500', bg: 'bg-blue-50/30' },
-  { id: 'QUOTED', label: 'Cotizado', color: 'bg-amber-500', bg: 'bg-amber-50/30' },
-  { id: 'NEGOTIATION', label: 'Negociación', color: 'bg-purple-500', bg: 'bg-purple-50/30' },
-  { id: 'WON', label: 'Ganado', color: 'bg-emerald-500', bg: 'bg-emerald-50/30' },
-  { id: 'LOST', label: 'Perdido', color: 'bg-red-500', bg: 'bg-red-50/30' }
+export const DEFAULT_STAGES = [
+  { id: 'PROSPECT', label: 'Prospección', color: 'bg-blue-500', bg: 'bg-blue-50/30', probability: 10 },
+  { id: 'QUOTED', label: 'Cotizado', color: 'bg-amber-500', bg: 'bg-amber-50/30', probability: 30 },
+  { id: 'NEGOTIATION', label: 'Negociación', color: 'bg-purple-500', bg: 'bg-purple-50/30', probability: 60 },
+  { id: 'WON', label: 'Ganado', color: 'bg-emerald-500', bg: 'bg-emerald-50/30', probability: 100 },
+  { id: 'LOST', label: 'Perdido', color: 'bg-red-500', bg: 'bg-red-50/30', probability: 0 }
 ];
 
 export default function SalesPipeline() {
   const [leads, setLeads] = useState([]);
+  const [stages, setStages] = useState(DEFAULT_STAGES);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newLead, setNewLead] = useState({
@@ -25,7 +27,15 @@ export default function SalesPipeline() {
   });
   const [draggedLead, setDraggedLead] = useState(null);
 
-  useEffect(() => { fetchLeads(); }, []);
+  useEffect(() => { fetchLeads(); fetchStages(); }, []);
+
+  const fetchStages = async () => {
+    try {
+      const res = await apiFetch('/api/config?key=CRM_PIPELINE_STAGES');
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) setStages(data);
+    } catch {}
+  };
 
   const fetchLeads = async () => {
     try {
@@ -80,25 +90,40 @@ export default function SalesPipeline() {
           <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tighter uppercase italic">Ventas</h2>
           <p className="text-gray-500 font-bold text-[10px] mt-1 uppercase tracking-widest flex items-center gap-2"><Target className="h-3 w-3 text-primary" /> CRM OleaControls</p>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="w-full sm:w-auto bg-gray-900 text-white px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-primary transition-all shadow-xl flex items-center justify-center gap-3">
-          <Plus className="h-4 w-4" /> Nuevo Prospecto
-        </button>
+        <div className="flex gap-3 w-full sm:w-auto">
+          <Link to="/crm/settings" className="bg-gray-100 text-gray-700 px-4 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-all flex items-center justify-center gap-2">
+            <Sliders className="h-4 w-4" /> Etapas
+          </Link>
+          <button onClick={() => setShowAddModal(true)} className="flex-1 sm:flex-none bg-gray-900 text-white px-6 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-primary transition-all shadow-xl flex items-center justify-center gap-3">
+            <Plus className="h-4 w-4" /> Nuevo Prospecto
+          </button>
+        </div>
       </div>
 
       {/* Kanban Board con Scroll Táctil */}
       <div className="flex gap-4 overflow-x-auto pb-8 snap-x snap-mandatory scrollbar-hide px-2">
-        {STAGES.map((stage) => {
+        {stages.map((stage) => {
           const stageLeads = leads.filter(l => l.stage === stage.id);
           const stageValue = stageLeads.reduce((acc, curr) => acc + (curr.estimatedValue || 0), 0);
 
           return (
             <div key={stage.id} className={cn("flex-shrink-0 w-[85vw] sm:w-80 snap-center space-y-4 rounded-[2rem] p-4 transition-colors", stage.bg)} onDragOver={(e) => e.preventDefault()} onDrop={() => draggedLead && updateLeadStage(draggedLead.id, stage.id)}>
-              <div className="bg-white p-4 rounded-[1.5rem] border border-gray-100 shadow-sm flex justify-between items-center sticky top-0 z-10">
-                <div className="flex items-center gap-2">
-                  <div className={cn("w-2.5 h-2.5 rounded-full shadow-sm", stage.color)} />
-                  <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest">{stage.label}</span>
+              <div className="bg-white p-4 rounded-[1.5rem] border border-gray-100 shadow-sm sticky top-0 z-10">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <div className={cn("w-2.5 h-2.5 rounded-full shadow-sm", stage.color)} />
+                    <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest">{stage.label}</span>
+                  </div>
+                  <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-lg text-[9px] font-black">{stageLeads.length}</span>
                 </div>
-                <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-lg text-[9px] font-black">{stageLeads.length}</span>
+                {stage.probability !== undefined && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
+                      <div className={cn("h-full rounded-full", stage.color)} style={{ width: `${stage.probability}%` }} />
+                    </div>
+                    <span className="text-[9px] font-black text-gray-400">{stage.probability}%</span>
+                  </div>
+                )}
               </div>
 
               <div className="px-2 text-[9px] font-black text-gray-400 uppercase flex justify-between items-center">
