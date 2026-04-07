@@ -10,11 +10,18 @@ import { cn } from '@/lib/utils';
 import { apiFetch } from '@/lib/api';
 
 export const DEFAULT_STAGES = [
-  { id: 'PROSPECT', label: 'Prospección', color: 'bg-blue-500', bg: 'bg-blue-50/30', probability: 10 },
-  { id: 'QUOTED', label: 'Cotizado', color: 'bg-amber-500', bg: 'bg-amber-50/30', probability: 30 },
-  { id: 'NEGOTIATION', label: 'Negociación', color: 'bg-purple-500', bg: 'bg-purple-50/30', probability: 60 },
-  { id: 'WON', label: 'Ganado', color: 'bg-emerald-500', bg: 'bg-emerald-50/30', probability: 100 },
-  { id: 'LOST', label: 'Perdido', color: 'bg-red-500', bg: 'bg-red-50/30', probability: 0 }
+  { id: 'QUALIFICATION',            label: 'Lead / Prospecto',          color: 'bg-slate-400',   bg: 'bg-slate-50/30',   probability: 10  },
+  { id: 'NEEDS_ANALYSIS',           label: 'Acercamiento',              color: 'bg-blue-400',    bg: 'bg-blue-50/30',    probability: 20  },
+  { id: 'VALUE_PROPOSITION',        label: 'Contacto decisor',          color: 'bg-indigo-500',  bg: 'bg-indigo-50/30',  probability: 30  },
+  { id: 'IDENTIFY_DECISION_MAKERS', label: 'Oportunidad detectada',     color: 'bg-violet-500',  bg: 'bg-violet-50/30',  probability: 40  },
+  { id: 'PROPOSAL_PRICE_QUOTE',     label: 'Levantamiento técnico',     color: 'bg-amber-500',   bg: 'bg-amber-50/30',   probability: 50  },
+  { id: 'PROPOSAL_SENT',            label: 'Cotización enviada',        color: 'bg-orange-500',  bg: 'bg-orange-50/30',  probability: 65  },
+  { id: 'NEGOTIATION_1',            label: 'Negociación 1',             color: 'bg-purple-500',  bg: 'bg-purple-50/30',  probability: 75  },
+  { id: 'RECOTIZACION',             label: 'Recotización',              color: 'bg-pink-500',    bg: 'bg-pink-50/30',    probability: 80  },
+  { id: 'NEGOTIATION_2',            label: 'Negociación 2',             color: 'bg-rose-500',    bg: 'bg-rose-50/30',    probability: 90  },
+  { id: 'CLOSED_WON_PENDING',       label: 'En espera de autorización', color: 'bg-yellow-500',  bg: 'bg-yellow-50/30',  probability: 95  },
+  { id: 'CLOSED_WON',               label: 'Ganado',                    color: 'bg-emerald-500', bg: 'bg-emerald-50/30', probability: 100 },
+  { id: 'CLOSED_LOST',              label: 'Perdido',                   color: 'bg-red-500',     bg: 'bg-red-50/30',     probability: 0   },
 ];
 
 export default function SalesPipeline() {

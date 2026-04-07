@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Plus, X, Save, Trash2, ChevronRight, DollarSign, Calendar,
   User, Building2, Mail, Phone, Target, TrendingUp, Activity,
@@ -11,8 +11,8 @@ import { cn } from '@/lib/utils';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/store/AuthContext';
 
-// ── Etapas del pipeline (basado en Zoho CRM) ──────────────────────────────────
-const DEAL_STAGES = [
+// ── Etapas del pipeline (fallback; se reemplazan con lo guardado en config) ────
+const DEAL_STAGES_DEFAULT = [
   { id: 'QUALIFICATION',             label: 'Lead / Prospecto',           prob: 10,  color: 'bg-slate-400',   ring: 'ring-slate-200',   text: 'text-slate-600',  bg: 'bg-slate-50' },
   { id: 'NEEDS_ANALYSIS',            label: 'Acercamiento',               prob: 20,  color: 'bg-blue-400',    ring: 'ring-blue-200',    text: 'text-blue-600',   bg: 'bg-blue-50' },
   { id: 'VALUE_PROPOSITION',         label: 'Contacto decisor',           prob: 30,  color: 'bg-indigo-500',  ring: 'ring-indigo-200',  text: 'text-indigo-600', bg: 'bg-indigo-50' },
@@ -27,7 +27,21 @@ const DEAL_STAGES = [
   { id: 'CLOSED_LOST',               label: 'Perdido',                    prob: 0,   color: 'bg-red-500',     ring: 'ring-red-200',     text: 'text-red-600',    bg: 'bg-red-50' },
 ];
 
-const STAGE_MAP = Object.fromEntries(DEAL_STAGES.map(s => [s.id, s]));
+// Normaliza etapas guardadas desde PipelineSettings (que usa `probability`) al
+// formato interno de DealsKanban (que usa `prob` + ring/text derivados)
+function normalizeStages(raw) {
+  return raw.map(s => {
+    const base = DEAL_STAGES_DEFAULT.find(d => d.id === s.id) || {};
+    return {
+      ...base,
+      ...s,
+      prob: s.prob ?? s.probability ?? base.prob ?? 0,
+      ring: s.ring ?? base.ring ?? 'ring-gray-200',
+      text: s.text ?? base.text ?? 'text-gray-600',
+      bg:   (s.bg ?? base.bg ?? 'bg-gray-50').replace('/30', ''),
+    };
+  });
+}
 
 const ACTIVITY_TYPES = [
   { id: 'NOTE',    label: 'Nota',     icon: MessageSquare, color: 'text-gray-500' },
@@ -53,6 +67,9 @@ const timeAgo = (d) => {
 // ── Componente Principal ───────────────────────────────────────────────────────
 export default function DealsKanban() {
   const { user } = useAuth();
+  const [dealStages, setDealStages] = useState(DEAL_STAGES_DEFAULT);
+  const stageMap = useMemo(() => Object.fromEntries(dealStages.map(s => [s.id, s])), [dealStages]);
+
   const [deals, setDeals] = useState([]);
   const [clients, setClients] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -101,7 +118,13 @@ export default function DealsKanban() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    fetchAll();
+    apiFetch('/api/config?key=CRM_PIPELINE_STAGES')
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data) && data.length > 0) setDealStages(normalizeStages(data)); })
+      .catch(() => {});
+  }, [fetchAll]);
 
   const fetchActivities = async (dealId) => {
     setActivitiesLoading(true);
@@ -126,7 +149,7 @@ export default function DealsKanban() {
       clientId: deal.clientId || '',
       assignedToId: deal.assignedToId || '',
       stage: deal.stage || 'QUALIFICATION',
-      probability: deal.probability ?? STAGE_MAP[deal.stage]?.prob ?? 10,
+      probability: deal.probability ?? stageMap[deal.stage]?.prob ?? 10,
       expectedClose: deal.expectedClose ? deal.expectedClose.split('T')[0] : '',
       source: deal.source || 'Web',
       description: deal.description || '',
@@ -158,7 +181,7 @@ export default function DealsKanban() {
 
   // ── Auto-guardar al cambiar etapa en el panel ────────────────────────────────
   const changeStageInPanel = async (newStage) => {
-    const prob = STAGE_MAP[newStage]?.prob ?? editForm.probability;
+    const prob = stageMap[newStage]?.prob ?? editForm.probability;
     const updated = { ...editForm, stage: newStage, probability: prob };
     setEditForm(updated);
     if (!selectedDeal) return;
@@ -208,7 +231,7 @@ export default function DealsKanban() {
   // ── Drag & Drop ──────────────────────────────────────────────────────────────
   const handleDrop = async (stageId) => {
     if (!draggedDeal || draggedDeal.stage === stageId) { setDraggedDeal(null); setDragOverStage(null); return; }
-    const prob = STAGE_MAP[stageId]?.prob ?? draggedDeal.probability;
+    const prob = stageMap[stageId]?.prob ?? draggedDeal.probability;
     setDeals(prev => prev.map(d => d.id === draggedDeal.id ? { ...d, stage: stageId, probability: prob } : d));
     try {
       const res = await apiFetch('/api/crm/deals', {
@@ -322,7 +345,7 @@ export default function DealsKanban() {
               onChange={e => setFilterStage(e.target.value)}
             >
               <option value="ALL">Todas las etapas</option>
-              {DEAL_STAGES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+              {dealStages.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
             </select>
           </div>
         </div>
@@ -330,7 +353,7 @@ export default function DealsKanban() {
         {/* ── Kanban Board ────────────────────────────────────────────────── */}
         <div className="flex-1 overflow-x-auto overflow-y-hidden">
           <div className="flex gap-3 h-full p-4 pb-6 min-w-max">
-            {DEAL_STAGES.map((stage) => {
+            {dealStages.map((stage) => {
               const stageDeals = filteredDeals.filter(d => d.stage === stage.id);
               const stageValue = stageDeals.reduce((s, d) => s + (d.value || 0), 0);
               const isOver = dragOverStage === stage.id;
@@ -434,13 +457,13 @@ export default function DealsKanban() {
                 <select
                   className={cn(
                     "w-full text-[10px] font-black uppercase tracking-widest rounded-xl px-4 py-3 border-2 outline-none cursor-pointer transition-all",
-                    STAGE_MAP[editForm.stage]?.ring, STAGE_MAP[editForm.stage]?.text,
-                    STAGE_MAP[editForm.stage]?.bg
+                    stageMap[editForm.stage]?.ring, stageMap[editForm.stage]?.text,
+                    stageMap[editForm.stage]?.bg
                   )}
                   value={editForm.stage}
                   onChange={e => changeStageInPanel(e.target.value)}
                 >
-                  {DEAL_STAGES.map(s => (
+                  {dealStages.map(s => (
                     <option key={s.id} value={s.id}>{s.label} ({s.prob}%)</option>
                   ))}
                 </select>
@@ -450,11 +473,11 @@ export default function DealsKanban() {
               <div className="mt-3">
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-[8px] font-black text-gray-400 uppercase">Probabilidad</span>
-                  <span className={cn("text-[10px] font-black", STAGE_MAP[editForm.stage]?.text)}>{editForm.probability}%</span>
+                  <span className={cn("text-[10px] font-black", stageMap[editForm.stage]?.text)}>{editForm.probability}%</span>
                 </div>
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                   <motion.div
-                    className={cn("h-full rounded-full", STAGE_MAP[editForm.stage]?.color)}
+                    className={cn("h-full rounded-full", stageMap[editForm.stage]?.color)}
                     animate={{ width: `${editForm.probability}%` }}
                     transition={{ duration: 0.4 }}
                   />
@@ -554,7 +577,7 @@ export default function DealsKanban() {
                   <div>
                     <label className="text-[8px] font-black text-gray-500 uppercase tracking-widest block mb-1">Etapa Inicial</label>
                     <select className="w-full bg-gray-50 rounded-xl px-4 py-4 font-black text-xs outline-none cursor-pointer" value={newDeal.stage} onChange={e => setNewDeal(f => ({ ...f, stage: e.target.value }))}>
-                      {DEAL_STAGES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                      {dealStages.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
                     </select>
                   </div>
                   <div>
