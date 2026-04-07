@@ -4,7 +4,6 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
@@ -13,6 +12,14 @@ export default defineConfig({
       registerType: 'autoUpdate',
       workbox: {
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3 MiB
+        // No precachear JS grandes — se sirven desde red con cache HTTP normal
+        runtimeCaching: [
+          {
+            urlPattern: /\.(?:js|css)$/,
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'static-assets', expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 30 } },
+          },
+        ],
       },
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
@@ -21,23 +28,44 @@ export default defineConfig({
         description: 'Plataforma Global de Gestión Olea Controls',
         theme_color: '#0066FF',
         icons: [
-          {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          }
-        ]
-      }
-    })
+          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+        ],
+      },
+    }),
   ],
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+    alias: { '@': path.resolve(__dirname, './src') },
+  },
+  build: {
+    // Chunk de alerta solo si un archivo individual supera 800 kB
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          // React core — siempre cargado, cache permanente
+          if (id.includes('node_modules/react/') ||
+              id.includes('node_modules/react-dom/') ||
+              id.includes('node_modules/react-router-dom/') ||
+              id.includes('node_modules/scheduler/')) {
+            return 'vendor-react';
+          }
+          // Recharts + dependencias de gráficas — solo se descarga en vistas con charts
+          if (id.includes('node_modules/recharts') ||
+              id.includes('node_modules/d3-') ||
+              id.includes('node_modules/victory-vendor')) {
+            return 'vendor-charts';
+          }
+          // Framer Motion — solo en vistas que lo usen
+          if (id.includes('node_modules/framer-motion')) {
+            return 'vendor-motion';
+          }
+          // Lucide — íconos, mediano tamaño
+          if (id.includes('node_modules/lucide-react')) {
+            return 'vendor-icons';
+          }
+        },
+      },
     },
   },
   server: {
