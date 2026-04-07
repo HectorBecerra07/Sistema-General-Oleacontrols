@@ -41,6 +41,7 @@ import ClientsList from '@/modules/crm/views/ClientsList';
 import QuotesList from '@/modules/crm/views/QuotesList';
 import IndirectSales from '@/modules/crm/views/IndirectSales';
 import InvoicesOrders from '@/modules/crm/views/InvoicesOrders';
+import PipelineSettings from '@/modules/crm/views/PipelineSettings';
 import AcademyHome from '@/modules/lms/views/AcademyHome';
 import CoursePlayer from '@/modules/lms/views/CoursePlayer';
 import FeedbackForm from '@/modules/feedback/FeedbackForm';
@@ -137,6 +138,7 @@ export default function AppRouter() {
           <Route path="indirect-sales" element={<IndirectSales />} />
           <Route path="orders" element={<InvoicesOrders />} />
           <Route path="invoices" element={<InvoicesOrders />} />
+          <Route path="settings" element={<PipelineSettings />} />
         </Route>
 
         {/* Olea Academy */}

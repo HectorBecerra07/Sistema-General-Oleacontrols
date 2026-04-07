@@ -8,7 +8,7 @@ import {
   ShoppingCart,
   Receipt,
   TrendingUp,
-  Settings,
+  Sliders,
   Briefcase
 } from 'lucide-react';
 import { useAuth, ROLES } from '@/store/AuthContext';
@@ -21,13 +21,14 @@ const crmNavItems = [
   { name: 'Presupuestos', path: '/crm/quotes', icon: FileText },
   { name: 'Órdenes de Compra', path: '/crm/orders', icon: ShoppingCart },
   { name: 'Facturación', path: '/crm/invoices', icon: Receipt },
+  { name: 'Config. Pipeline', path: '/crm/settings', icon: Sliders },
 ];
 
 export default function CRMLayout() {
   const location = useLocation();
   const { user } = useAuth();
   const isSalesPerson = user?.role === ROLES.ADMIN || user?.role === ROLES.SALES;
-  const isFullHeight = ['/crm', '/crm/deals', '/crm/clients'].includes(location.pathname);
+  const isFullHeight = ['/crm', '/crm/deals', '/crm/clients'].includes(location.pathname) && !location.pathname.startsWith('/crm/settings');
 
   return (
     <div className="flex h-[calc(100vh-4rem)] -m-4 md:-m-8 bg-gray-50">
