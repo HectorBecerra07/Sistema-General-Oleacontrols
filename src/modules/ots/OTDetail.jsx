@@ -19,10 +19,13 @@ const parseJornadas = (raw) => {
   catch { return []; }
 };
 
-const computeTotalMs = (jornadas) =>
+const computeTotalMs = (jornadas, capAt = null) =>
   jornadas.reduce((total, j) => {
     if (j.startedAt && j.endedAt) return total + (new Date(j.endedAt) - new Date(j.startedAt));
-    if (j.startedAt && j.status === 'ACTIVE') return total + (Date.now() - new Date(j.startedAt));
+    if (j.startedAt && j.status === 'ACTIVE') {
+      const end = capAt ? new Date(capAt) : new Date();
+      return total + (end - new Date(j.startedAt));
+    }
     return total;
   }, 0);
 
@@ -904,7 +907,7 @@ export default function OTDetail() {
                   </div>
 
                   {jornadas.length > 0 && (() => {
-                    const totalMs = computeTotalMs(jornadas);
+                    const totalMs = computeTotalMs(jornadas, ot.finishedAt);
                     const days = new Set(jornadas.map(j => new Date(j.startedAt).toDateString())).size;
                     const avgMs = totalMs / jornadas.length;
                     return (
