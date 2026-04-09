@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  DollarSign, TrendingUp, CheckCircle2, X, Clock, 
+import {
+  DollarSign, TrendingUp, CheckCircle2, X, Clock,
   FileText, Download, Target, Briefcase
 } from 'lucide-react';
 import { useAuth } from '@/store/AuthContext';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { apiFetch } from '@/lib/api';
 
 export default function IndirectSales() {
   const { user } = useAuth();
@@ -15,9 +16,9 @@ export default function IndirectSales() {
   useEffect(() => {
     const fetchMySales = async () => {
       try {
-        const res = await fetch('/api/quotes');
-        const data = await res.json();
-        const filtered = data.filter(q => q.sellerId === user.id);
+        const data = await apiFetch('/api/quotes');
+        const list = Array.isArray(data) ? data : [];
+        const filtered = list.filter(q => q.sellerId === user.id);
         setMySales(filtered);
       } catch (err) {
         console.error(err);

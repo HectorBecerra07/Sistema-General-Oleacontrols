@@ -81,7 +81,7 @@ export default async function handler(req, res) {
           });
           
           if (!ot) return res.status(404).json({ error: 'OT no encontrada' });
-          
+
           // FIRMAR URLs para el detalle
           ot.signature = await signUrlIfNeeded(ot.signature);
           ot.clientSignature = await signUrlIfNeeded(ot.clientSignature);
@@ -92,7 +92,26 @@ export default async function handler(req, res) {
               }
           }
 
-          return res.status(200).json(ot);
+          // Normalizar campos para que el frontend los reciba igual que en el listado
+          const detailFormatted = {
+              ...ot,
+              leadTechId:   ot.technicianId,
+              leadTechName: ot.technician?.name || 'Sin asignar',
+              technicianName: ot.technician?.name || 'Sin asignar',
+              client:       ot.clientName,
+              location:     ot.address,
+              lat:          ot.latitude,
+              lng:          ot.longitude,
+              workDescription: ot.description,
+              assistantTechs: ot.assistantTechs
+                  ? (typeof ot.assistantTechs === 'string' ? JSON.parse(ot.assistantTechs) : ot.assistantTechs)
+                  : [],
+              supportTechs: ot.supportTechs
+                  ? (typeof ot.supportTechs === 'string' ? JSON.parse(ot.supportTechs) : ot.supportTechs)
+                  : [],
+          };
+
+          return res.status(200).json(detailFormatted);
       }
 
       const where = {};

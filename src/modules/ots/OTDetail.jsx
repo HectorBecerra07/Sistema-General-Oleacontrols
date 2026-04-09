@@ -36,7 +36,8 @@ export default function OTDetail() {
   const [additionalFunds, setAdditionalFunds] = useState(0);
   const [elapsedTime, setElapsedTime] = useState('00:00:00');
   
-  const isLead = ot?.technicianId === user?.id;
+  const techName = ot?.leadTechName || ot?.technician?.name || ot?.technicianName || null;
+  const isLead = ot?.technicianId === user?.id || ot?.leadTechId === user?.id;
   const isSupport = (ot?.supportTechs && ot.supportTechs.some(st => st.id === user?.id)) ||
                     (ot?.assistantTechs && ot.assistantTechs.some(at => at.id === user?.id));
   const isInvolved = isLead || isSupport;
@@ -216,7 +217,7 @@ export default function OTDetail() {
                 </div>
                 <div>
                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Técnico Responsable</p>
-                    <p className="text-sm font-bold text-gray-700 uppercase">{ot.leadTechName || 'Sin asignar'}</p>
+                    <p className="text-sm font-bold text-gray-700 uppercase">{techName || 'Sin asignar'}</p>
                 </div>
             </div>
           </div>

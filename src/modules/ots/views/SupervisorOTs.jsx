@@ -4,7 +4,7 @@ import {
   ClipboardList, Search, MoreHorizontal, Clock, Eye,
   X, Send, Trophy, Building2, User, Trash2, AlertCircle, FileText,
   MapPin, Loader2, Layers, ChevronDown, ChevronUp, Receipt, TrendingDown,
-  DollarSign
+  DollarSign, ChevronLeft, ChevronRight, Check, Briefcase, Zap
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents, Popup } from 'react-leaflet';
 import L from 'leaflet';
@@ -71,6 +71,7 @@ export default function SupervisorOTs() {
   const [extraFunds, setExtraFunds] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({ status: 'ALL', priority: 'ALL' });
+  const [formStep, setFormStep] = useState(1);
 
   const initialNewOT = {
     title: '', storeNumber: '', storeName: '', client: '', address: '', secondaryAddress: '',
@@ -389,6 +390,7 @@ export default function SupervisorOTs() {
   const openCreateModal = () => {
     setNewOT(initialNewOT);
     setIsEditMode(false);
+    setFormStep(1);
     setIsModalOpen(true);
   };
 
@@ -402,6 +404,7 @@ export default function SupervisorOTs() {
     });
     setEditingId(ot.id);
     setIsEditMode(true);
+    setFormStep(1);
     setMapCenter([ot.lat || 19.4326, ot.lng || -99.1332]);
     setIsModalOpen(true);
   };
@@ -790,237 +793,453 @@ export default function SupervisorOTs() {
         </div>
       </div>
 
-      {/* Modal Principal de OT */}
+      {/* Modal Principal de OT — Wizard 3 pasos */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-5xl max-h-[92vh] overflow-y-auto custom-scrollbar">
-            <div className="p-8 md:p-10">
-              <div className="flex justify-between items-center mb-8 border-b pb-6">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden" style={{ maxHeight: '94vh' }}>
+
+            {/* ── Header dark con stepper ── */}
+            <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-7 relative overflow-hidden shrink-0">
+              <div className="absolute top-0 right-0 w-72 h-72 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-8 left-1/4 w-48 h-48 bg-blue-500/5 rounded-full blur-2xl pointer-events-none" />
+
+              <div className="relative z-10 flex justify-between items-start mb-7">
                 <div>
-                  <h3 className="text-2xl font-black text-gray-900 tracking-tighter uppercase leading-none">
-                    {isEditMode ? `Gestión: ${editingId}` : 'Nueva Orden de Trabajo'}
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5">
+                    <Zap className="h-3 w-3 text-primary" /> Olea Controls · Operaciones 2026
+                  </p>
+                  <h3 className="text-2xl font-black text-white tracking-tight leading-none">
+                    {isEditMode ? 'Editar Orden de Trabajo' : 'Nueva Orden de Trabajo'}
                   </h3>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2 flex items-center gap-2">
-                    <Layers className="h-3 w-3 text-primary" /> Olea controls • Operaciones 2026
+                  <p className="text-xs text-slate-400 mt-1.5 font-medium">
+                    {formStep === 1 && 'Paso 1 — Identificación del servicio'}
+                    {formStep === 2 && 'Paso 2 — Ubicación y contacto en sitio'}
+                    {formStep === 3 && 'Paso 3 — Equipo, programación y fondos'}
                   </p>
                 </div>
-                <button onClick={() => setIsModalOpen(false)} className="p-3 bg-gray-50 hover:bg-gray-100 rounded-2xl transition-all">
-                  <X className="h-6 w-6 text-gray-400" />
+                <button onClick={() => setIsModalOpen(false)} className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-all">
+                  <X className="h-5 w-5 text-slate-300" />
                 </button>
               </div>
 
-              <form onSubmit={handleFormSubmit} className="space-y-8">
-                {/* Selectores Superiores */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-2">
-                    <label className="text-[9px] font-black uppercase text-primary tracking-widest ml-1">Importar Cliente CRM</label>
-                    <select
-                      className="w-full bg-white border border-gray-200 rounded-xl py-2 px-4 text-xs font-black shadow-sm outline-none focus:border-primary"
-                      onChange={e => handleClientSelect(e.target.value)}
-                    >
-                      <option value="">Seleccionar existente...</option>
-                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-2">
-                    <label className="text-[9px] font-black uppercase text-purple-500 tracking-widest ml-1">Usar Plantilla OT</label>
-                    <select
-                      className="w-full bg-white border border-gray-200 rounded-xl py-2 px-4 text-xs font-black shadow-sm outline-none focus:border-purple-400"
-                      onChange={e => handleTemplateSelect(e.target.value)}
-                    >
-                      <option value="">Seleccionar tipo...</option>
-                      {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                  </div>
-                </div>
+              {/* Stepper */}
+              <div className="relative z-10 flex items-center">
+                {[{ n: 1, label: 'Servicio' }, { n: 2, label: 'Ubicación' }, { n: 3, label: 'Equipo' }].map(({ n, label }, i, arr) => (
+                  <React.Fragment key={n}>
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        "h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-black border-2 transition-all duration-300 shrink-0",
+                        formStep > n  ? "bg-primary border-primary text-white shadow-md shadow-primary/30"
+                        : formStep === n ? "bg-white border-white text-slate-900 shadow-lg"
+                        : "bg-transparent border-slate-700 text-slate-600"
+                      )}>
+                        {formStep > n ? <Check className="h-3.5 w-3.5" /> : n}
+                      </div>
+                      <span className={cn(
+                        "text-[10px] font-black uppercase tracking-wider transition-all hidden sm:block",
+                        formStep === n ? "text-white" : formStep > n ? "text-primary" : "text-slate-600"
+                      )}>{label}</span>
+                    </div>
+                    {i < arr.length - 1 && (
+                      <div className={cn("flex-1 h-px mx-3 transition-all duration-500", formStep > n ? "bg-primary" : "bg-slate-700")} />
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="space-y-6">
-                    <div className="bg-white rounded-[2rem] border border-gray-100 p-6 shadow-sm space-y-4">
-                      <SectionHeader title="Identificación" icon={FileText} />
-                      <InputField label="Título de la Orden" value={newOT.title} onChange={v => setNewOT({ ...newOT, title: v })} />
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Tienda #" value={newOT.storeNumber} onChange={v => setNewOT({ ...newOT, storeNumber: v })} />
-                        <InputField label="Nombre Sucursal" value={newOT.storeName} onChange={v => setNewOT({ ...newOT, storeName: v })} />
+            {/* ── Contenido scrollable ── */}
+            <div className="flex-1 overflow-y-auto">
+              <form id="ot-form" onSubmit={handleFormSubmit}>
+
+                {/* ═══ PASO 1: Identificación ═══ */}
+                {formStep === 1 && (
+                  <div className="p-8 space-y-7">
+
+                    {/* Selectors rápidos */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-primary mb-2 block">Importar cliente CRM</label>
+                        <div className="relative">
+                          <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300 pointer-events-none" />
+                          <select
+                            className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-xs outline-none focus:border-primary focus:bg-white transition-all shadow-sm"
+                            onChange={e => handleClientSelect(e.target.value)}
+                          >
+                            <option value="">Seleccionar cliente...</option>
+                            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-purple-500 mb-2 block">Plantilla de servicio</label>
+                        <div className="relative">
+                          <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300 pointer-events-none" />
+                          <select
+                            className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-xs outline-none focus:border-purple-400 focus:bg-white transition-all shadow-sm"
+                            onChange={e => handleTemplateSelect(e.target.value)}
+                          >
+                            <option value="">Seleccionar tipo...</option>
+                            {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                          </select>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="bg-blue-50/20 rounded-[2rem] border border-blue-100 p-6 shadow-sm space-y-4">
-                      <SectionHeader title="Contacto en Sitio" icon={User} color="blue" />
-                      <InputField label="Persona Encargada" value={newOT.contactName} onChange={v => setNewOT({ ...newOT, contactName: v })} />
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Email Contacto" type="email" value={newOT.contactEmail} onChange={v => setNewOT({ ...newOT, contactEmail: v })} />
-                        <InputField label="Teléfono Directo" value={newOT.contactPhone} onChange={v => setNewOT({ ...newOT, contactPhone: v })} />
-                      </div>
-                      <InputField label="Referencia de Acceso" value={newOT.otReference} onChange={v => setNewOT({ ...newOT, otReference: v })} />
+                    <div className="relative flex items-center gap-3">
+                      <div className="flex-1 h-px bg-gray-100" />
+                      <span className="text-[9px] font-black uppercase tracking-widest text-gray-300 whitespace-nowrap">Datos de la orden</span>
+                      <div className="flex-1 h-px bg-gray-100" />
                     </div>
 
-                    <div className="bg-white rounded-[2rem] border border-gray-100 p-6 shadow-sm space-y-4">
-                      <SectionHeader title="Datos del Cliente" icon={Building2} color="gray" />
-                      <InputField label="Razón Social / Empresa" value={newOT.client} onChange={v => setNewOT({ ...newOT, client: v })} />
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Email Facturación" value={newOT.clientEmail} onChange={v => setNewOT({ ...newOT, clientEmail: v })} />
-                        <InputField label="Teléfono Oficina" value={newOT.clientPhone} onChange={v => setNewOT({ ...newOT, clientPhone: v })} />
-                      </div>
+                    {/* Título */}
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Título de la Orden *</label>
+                      <input
+                        required
+                        className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:border-primary focus:bg-white transition-all shadow-sm placeholder:text-gray-300"
+                        value={newOT.title}
+                        onChange={e => setNewOT({ ...newOT, title: e.target.value })}
+                        placeholder="Ej. Mantenimiento preventivo sistema eléctrico..."
+                      />
                     </div>
-                  </div>
 
-                  <div className="space-y-6">
-                    <div className="bg-white rounded-[2rem] border border-gray-100 p-6 shadow-sm space-y-4">
-                      <SectionHeader title="Ubicación y Mapa" icon={MapPin} color="emerald" />
-                      <div className="flex gap-2">
+                    {/* Sucursal */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2 block">No. Sucursal</label>
                         <input
-                          required
-                          className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl font-bold text-xs"
-                          value={newOT.address}
-                          onChange={e => setNewOT({ ...newOT, address: e.target.value })}
-                          placeholder="Dirección..."
+                          className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:border-primary focus:bg-white transition-all shadow-sm placeholder:text-gray-300"
+                          value={newOT.storeNumber}
+                          onChange={e => setNewOT({ ...newOT, storeNumber: e.target.value })}
+                          placeholder="152"
                         />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Nombre Sucursal</label>
+                        <input
+                          className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:border-primary focus:bg-white transition-all shadow-sm placeholder:text-gray-300"
+                          value={newOT.storeName}
+                          onChange={e => setNewOT({ ...newOT, storeName: e.target.value })}
+                          placeholder="Coppel Insurgentes..."
+                        />
+                      </div>
+                    </div>
+
+                    {/* Empresa */}
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Razón Social / Empresa</label>
+                      <div className="relative">
+                        <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300 pointer-events-none" />
+                        <input
+                          className="w-full pl-11 pr-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:border-primary focus:bg-white transition-all shadow-sm placeholder:text-gray-300"
+                          value={newOT.client}
+                          onChange={e => setNewOT({ ...newOT, client: e.target.value })}
+                          placeholder="Coppel S.A. de C.V."
+                        />
+                      </div>
+                    </div>
+
+                    {/* Prioridad — visual cards */}
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-3 block">Prioridad</label>
+                      <div className="grid grid-cols-4 gap-2.5">
+                        {[
+                          { value: 'LOW',    label: 'Baja',    dot: 'bg-gray-400',   active: 'bg-gray-900 border-gray-900 text-white shadow-lg', passive: 'bg-gray-50 border-gray-200 text-gray-500' },
+                          { value: 'MEDIUM', label: 'Media',   dot: 'bg-blue-500',   active: 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-200', passive: 'bg-blue-50 border-blue-100 text-blue-600' },
+                          { value: 'HIGH',   label: 'Alta',    dot: 'bg-orange-500', active: 'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-200', passive: 'bg-orange-50 border-orange-100 text-orange-600' },
+                          { value: 'URGENT', label: 'Urgente', dot: 'bg-red-500',    active: 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-200', passive: 'bg-red-50 border-red-100 text-red-600' },
+                        ].map(p => (
+                          <button
+                            key={p.value}
+                            type="button"
+                            onClick={() => setNewOT({ ...newOT, priority: p.value })}
+                            className={cn(
+                              "py-3.5 rounded-2xl border-2 text-[10px] font-black uppercase tracking-wide transition-all duration-200 flex flex-col items-center gap-1.5",
+                              newOT.priority === p.value ? p.active + ' scale-105' : p.passive + ' hover:scale-105'
+                            )}
+                          >
+                            <div className={cn("h-2 w-2 rounded-full", newOT.priority === p.value ? "bg-white/60" : p.dot)} />
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ═══ PASO 2: Ubicación y Contacto ═══ */}
+                {formStep === 2 && (
+                  <div className="p-8 space-y-6">
+                    {/* Dirección */}
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Dirección Principal *</label>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300 pointer-events-none" />
+                          <input
+                            required
+                            className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:border-primary focus:bg-white transition-all shadow-sm placeholder:text-gray-300"
+                            value={newOT.address}
+                            onChange={e => setNewOT({ ...newOT, address: e.target.value })}
+                            placeholder="Buscar dirección o hacer clic en el mapa..."
+                          />
+                        </div>
                         <button
                           type="button"
                           onClick={handleLocationSearch}
-                          className="bg-gray-900 text-white px-4 rounded-xl hover:bg-black transition-all"
+                          className="shrink-0 bg-gray-900 text-white px-5 rounded-2xl hover:bg-black transition-all flex items-center gap-2 shadow-sm"
                         >
                           {searchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                         </button>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Dir. Secundaria" value={newOT.secondaryAddress} onChange={v => setNewOT({ ...newOT, secondaryAddress: v })} />
-                        <InputField label="Zona / Referencia" value={newOT.otAddress} onChange={v => setNewOT({ ...newOT, otAddress: v })} />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Dirección Secundaria</label>
+                        <input
+                          className="w-full px-5 py-3 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:border-primary focus:bg-white transition-all shadow-sm placeholder:text-gray-300"
+                          value={newOT.secondaryAddress}
+                          onChange={e => setNewOT({ ...newOT, secondaryAddress: e.target.value })}
+                          placeholder="Interior, piso..."
+                        />
                       </div>
-                      <div className="h-[180px] rounded-2xl overflow-hidden border relative z-0">
-                        <MapContainer center={mapCenter} zoom={15} style={{ height: '100%', width: '100%' }}>
-                          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                          <Marker position={[newOT.lat, newOT.lng]} icon={otIcon} />
-                          <MapEvents onLocationSelect={async (latlng) => {
-                            setNewOT(prev => ({ ...prev, lat: latlng.lat, lng: latlng.lng }));
-                            try {
-                              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latlng.lat}&lon=${latlng.lng}`);
-                              const data = await res.json();
-                              if (data && data.display_name) setNewOT(prev => ({ ...prev, address: data.display_name }));
-                            } catch (err) { console.error(err); }
-                          }} />
-                          <ChangeView center={mapCenter} />
-                        </MapContainer>
+                      <div>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Zona / Referencia</label>
+                        <input
+                          className="w-full px-5 py-3 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:border-primary focus:bg-white transition-all shadow-sm placeholder:text-gray-300"
+                          value={newOT.otAddress}
+                          onChange={e => setNewOT({ ...newOT, otAddress: e.target.value })}
+                          placeholder="Frente al banco..."
+                        />
                       </div>
                     </div>
 
-                    <div className="bg-gray-900 rounded-[2rem] p-6 text-white space-y-6 relative overflow-hidden shadow-xl">
-                      <SectionHeader title="Logística y Fondos" icon={Clock} color="primary" dark />
+                    {/* Mapa */}
+                    <div className="rounded-2xl overflow-hidden border border-gray-100 shadow-inner relative z-0" style={{ height: 200 }}>
+                      <MapContainer center={mapCenter} zoom={15} style={{ height: '100%', width: '100%' }}>
+                        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                        <Marker position={[newOT.lat, newOT.lng]} icon={otIcon} />
+                        <MapEvents onLocationSelect={async (latlng) => {
+                          setNewOT(prev => ({ ...prev, lat: latlng.lat, lng: latlng.lng }));
+                          try {
+                            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latlng.lat}&lon=${latlng.lng}`);
+                            const data = await res.json();
+                            if (data?.display_name) setNewOT(prev => ({ ...prev, address: data.display_name }));
+                          } catch (err) { console.error(err); }
+                        }} />
+                        <ChangeView center={mapCenter} />
+                      </MapContainer>
+                    </div>
+                    <p className="text-[9px] font-bold text-gray-300 text-center uppercase tracking-widest">Haz clic en el mapa para ajustar la ubicación exacta</p>
+
+                    {/* Contacto en sitio */}
+                    <div className="bg-blue-50/60 rounded-2xl border border-blue-100 p-5 space-y-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="h-7 w-7 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center shrink-0"><User className="h-4 w-4" /></div>
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-700">Contacto en Sitio</h4>
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Persona Responsable</label>
+                        <input
+                          className="w-full px-5 py-3 bg-white border border-blue-100 rounded-2xl font-bold text-sm outline-none focus:border-blue-400 transition-all shadow-sm placeholder:text-gray-300"
+                          value={newOT.contactName}
+                          onChange={e => setNewOT({ ...newOT, contactName: e.target.value })}
+                          placeholder="Nombre del encargado..."
+                        />
+                      </div>
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-[9px] font-black uppercase text-gray-500">Técnico Líder</label>
-                          <select
-                            required
-                            className="w-full px-3 py-2 bg-gray-800 border-gray-700 text-white rounded-xl font-bold text-xs"
-                            value={newOT.leadTechId}
-                            onChange={e => setNewOT({
-                              ...newOT,
-                              leadTechId: e.target.value,
-                              leadTechName: e.target.options[e.target.selectedIndex].text
-                            })}
-                          >
-                            <option value="">Líder...</option>
-                            {availableTechs.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                          </select>
+                        <div>
+                          <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Email</label>
+                          <input type="email"
+                            className="w-full px-4 py-3 bg-white border border-blue-100 rounded-2xl font-bold text-xs outline-none focus:border-blue-400 transition-all shadow-sm placeholder:text-gray-300"
+                            value={newOT.contactEmail}
+                            onChange={e => setNewOT({ ...newOT, contactEmail: e.target.value })}
+                            placeholder="email@empresa.com"
+                          />
                         </div>
-                        <InputField label="Fecha Programada" type="date" value={newOT.scheduledDate} onChange={v => setNewOT({ ...newOT, scheduledDate: v })} dark />
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-[9px] font-black uppercase text-gray-500">Equipo de Apoyo</label>
-                        <div className="flex flex-wrap gap-2">
-                          {availableTechs.filter(t => t.id !== newOT.leadTechId).map(tech => (
-                            <button
-                              key={tech.id}
-                              type="button"
-                              onClick={() => toggleAssistantTech(tech)}
-                              className={cn(
-                                "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase border transition-all",
-                                newOT.assistantTechs?.some(t => t.id === tech.id)
-                                  ? "bg-blue-600 text-white border-blue-600 shadow-md"
-                                  : "bg-gray-800 text-gray-400 border-gray-100 hover:border-gray-500"
-                              )}
-                            >
-                              {tech.name}
-                            </button>
-                          ))}
+                        <div>
+                          <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Teléfono</label>
+                          <input
+                            className="w-full px-4 py-3 bg-white border border-blue-100 rounded-2xl font-bold text-xs outline-none focus:border-blue-400 transition-all shadow-sm placeholder:text-gray-300"
+                            value={newOT.contactPhone}
+                            onChange={e => setNewOT({ ...newOT, contactPhone: e.target.value })}
+                            placeholder="55 0000 0000"
+                          />
                         </div>
                       </div>
-
-                      <div className="p-4 bg-gray-800/50 rounded-2xl border border-gray-700 flex justify-between items-center">
-                        <div className="space-y-1">
-                          <p className="text-[8px] font-black text-indigo-400 uppercase">Presupuesto OT</p>
-                          <p className="text-xl font-black text-white">${(newOT.assignedFunds || 0).toLocaleString()}</p>
-                        </div>
-
-                        {isEditMode ? (
-                          <div className="flex flex-col items-end gap-1">
-                            <label className="text-[8px] font-black uppercase text-emerald-400">Extra</label>
-                            <input
-                              type="number"
-                              className="w-24 px-2 py-1 bg-gray-900 border border-emerald-500/30 rounded-lg text-white font-black text-xs"
-                              value={extraFunds}
-                              onChange={e => setExtraFunds(e.target.value)}
-                              placeholder="0.00"
-                            />
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-end gap-1">
-                            <label className="text-[8px] font-black uppercase text-gray-500">Monto Inicial</label>
-                            <input
-                              type="number"
-                              className="w-24 px-2 py-1 bg-gray-800 border-gray-700 rounded-lg text-white font-black text-xs"
-                              value={newOT.assignedFunds}
-                              onChange={e => setNewOT({ ...newOT, assignedFunds: parseFloat(e.target.value) || 0 })}
-                            />
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Prioridad" value={newOT.priority} onChange={v => setNewOT({ ...newOT, priority: v })} isSelect options={['LOW', 'MEDIUM', 'HIGH']} dark />
-                        <InputField label="Hora Llegada" type="time" value={newOT.arrivalTime} onChange={v => setNewOT({ ...newOT, arrivalTime: v })} dark />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black uppercase text-gray-500 tracking-widest">Instrucciones</label>
-                        <textarea
-                          rows="2"
-                          className="w-full px-4 py-3 bg-gray-800 border-gray-700 text-white rounded-xl font-bold text-[11px] resize-none outline-none focus:border-primary shadow-inner"
-                          value={newOT.workDescription}
-                          onChange={e => setNewOT({ ...newOT, workDescription: e.target.value })}
-                          placeholder="Labor técnica..."
+                      <div>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Referencia de Acceso</label>
+                        <input
+                          className="w-full px-5 py-3 bg-white border border-blue-100 rounded-2xl font-bold text-xs outline-none focus:border-blue-400 transition-all shadow-sm placeholder:text-gray-300"
+                          value={newOT.otReference}
+                          onChange={e => setNewOT({ ...newOT, otReference: e.target.value })}
+                          placeholder="Usar acceso por puerta lateral..."
                         />
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
 
-                <div className="pt-6 border-t flex justify-end gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="px-8 py-4 text-gray-400 font-black text-xs uppercase hover:text-gray-600 transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSaving}
-                    className="bg-primary text-white px-12 py-4 rounded-2xl font-black text-xs uppercase shadow-xl hover:bg-primary/90 transition-all active:scale-95 min-w-[200px] flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" /> Procesando...
-                      </>
-                    ) : (
-                      isEditMode ? 'Actualizar Orden' : 'Publicar y Notificar'
+                {/* ═══ PASO 3: Equipo y Programación ═══ */}
+                {formStep === 3 && (
+                  <div className="p-8 space-y-6">
+                    {/* Fecha y hora */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Fecha Programada</label>
+                        <input type="date"
+                          className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:border-primary focus:bg-white transition-all shadow-sm"
+                          value={newOT.scheduledDate}
+                          onChange={e => setNewOT({ ...newOT, scheduledDate: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Hora de Llegada</label>
+                        <input type="time"
+                          className="w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:border-primary focus:bg-white transition-all shadow-sm"
+                          value={newOT.arrivalTime}
+                          onChange={e => setNewOT({ ...newOT, arrivalTime: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Técnico líder */}
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Técnico Líder *</label>
+                      <div className="relative">
+                        <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300 pointer-events-none" />
+                        <select
+                          required
+                          className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:border-primary focus:bg-white transition-all shadow-sm"
+                          value={newOT.leadTechId}
+                          onChange={e => setNewOT({
+                            ...newOT,
+                            leadTechId: e.target.value,
+                            leadTechName: e.target.options[e.target.selectedIndex].text
+                          })}
+                        >
+                          <option value="">Seleccionar técnico responsable...</option>
+                          {availableTechs.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Equipo de apoyo */}
+                    {availableTechs.filter(t => t.id !== newOT.leadTechId).length > 0 && (
+                      <div>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-3 block">Equipo de Apoyo</label>
+                        <div className="flex flex-wrap gap-2">
+                          {availableTechs.filter(t => t.id !== newOT.leadTechId).map(tech => {
+                            const isSelected = newOT.assistantTechs?.some(t => t.id === tech.id);
+                            return (
+                              <button
+                                key={tech.id}
+                                type="button"
+                                onClick={() => toggleAssistantTech(tech)}
+                                className={cn(
+                                  "px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wide border-2 transition-all duration-200 flex items-center gap-1.5",
+                                  isSelected
+                                    ? "bg-primary text-white border-primary shadow-md shadow-primary/20 scale-105"
+                                    : "bg-gray-50 text-gray-500 border-gray-100 hover:border-primary/30 hover:text-primary"
+                                )}
+                              >
+                                <div className={cn("h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-black shrink-0", isSelected ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600")}>
+                                  {tech.name.charAt(0).toUpperCase()}
+                                </div>
+                                {tech.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     )}
-                  </button>
-                </div>
-              </form>
 
+                    {/* Fondos */}
+                    <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-5 text-white flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Presupuesto Asignado</p>
+                        <p className="text-3xl font-black tabular-nums">
+                          ${(isEditMode
+                            ? (parseFloat(newOT.assignedFunds || 0) + parseFloat(extraFunds || 0))
+                            : parseFloat(newOT.assignedFunds || 0)
+                          ).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-500 block mb-1.5">
+                          {isEditMode ? 'Fondos Extra' : 'Monto Inicial'}
+                        </label>
+                        <input
+                          type="number"
+                          className="w-28 px-3 py-2.5 bg-slate-700 border border-slate-600 rounded-xl text-white font-black text-sm outline-none focus:border-primary text-right"
+                          value={isEditMode ? extraFunds : newOT.assignedFunds}
+                          onChange={e => isEditMode
+                            ? setExtraFunds(e.target.value)
+                            : setNewOT({ ...newOT, assignedFunds: parseFloat(e.target.value) || 0 })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Instrucciones */}
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Instrucciones Técnicas</label>
+                      <textarea
+                        rows="4"
+                        className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl font-bold text-sm outline-none focus:border-primary focus:bg-white transition-all shadow-sm resize-none placeholder:text-gray-300"
+                        value={newOT.workDescription}
+                        onChange={e => setNewOT({ ...newOT, workDescription: e.target.value })}
+                        placeholder="Describe el trabajo técnico, materiales necesarios, condiciones especiales de acceso..."
+                      />
+                    </div>
+                  </div>
+                )}
+
+              </form>
+            </div>
+
+            {/* ── Footer navegación ── */}
+            <div className="shrink-0 p-5 border-t border-gray-100 bg-gray-50/50 rounded-b-[2rem] flex justify-between items-center">
+              <button
+                type="button"
+                onClick={formStep > 1 ? () => setFormStep(s => s - 1) : () => setIsModalOpen(false)}
+                className="px-5 py-3 text-gray-500 font-black text-xs uppercase hover:text-gray-700 transition-colors flex items-center gap-1.5"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                {formStep > 1 ? 'Anterior' : 'Cancelar'}
+              </button>
+
+              {/* Dots indicator */}
+              <div className="flex items-center gap-1.5">
+                {[1, 2, 3].map(n => (
+                  <div key={n} className={cn("rounded-full transition-all duration-300", formStep === n ? "w-5 h-1.5 bg-primary" : "w-1.5 h-1.5 bg-gray-200")} />
+                ))}
+              </div>
+
+              {formStep < 3 ? (
+                <button
+                  type="button"
+                  onClick={() => setFormStep(s => s + 1)}
+                  className="bg-gray-900 text-white px-7 py-3 rounded-2xl font-black text-xs uppercase flex items-center gap-1.5 hover:bg-black transition-all shadow-sm"
+                >
+                  Siguiente <ChevronRight className="h-4 w-4" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  form="ot-form"
+                  disabled={isSaving}
+                  className="bg-primary text-white px-8 py-3 rounded-2xl font-black text-xs uppercase shadow-xl shadow-primary/20 flex items-center gap-2 disabled:opacity-50 hover:bg-primary/90 transition-all active:scale-95"
+                >
+                  {isSaving ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Procesando...</>
+                  ) : (
+                    isEditMode ? 'Actualizar Orden' : 'Publicar Orden'
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>
