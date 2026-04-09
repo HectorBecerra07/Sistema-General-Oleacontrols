@@ -40,7 +40,7 @@ const STATUS = {
   PENDING:     { label: 'Pendiente',    short: 'PEND',    stripe: 'bg-slate-400',  badge: 'bg-slate-100 text-slate-600 border-slate-200',    dot: 'bg-slate-400' },
   UNASSIGNED:  { label: 'Sin Asignar',  short: 'S/A',     stripe: 'bg-gray-300',   badge: 'bg-gray-100 text-gray-500 border-gray-200',        dot: 'bg-gray-300' },
   ASSIGNED:    { label: 'Asignada',     short: 'ASIG',    stripe: 'bg-blue-500',   badge: 'bg-blue-50 text-blue-600 border-blue-200',         dot: 'bg-blue-500' },
-  ACCEPTED:    { label: 'Aceptada',     short: 'ACEP',    stripe: 'bg-indigo-500', badge: 'bg-indigo-50 text-indigo-600 border-indigo-200',   dot: 'bg-indigo-500' },
+  ACCEPTED:    { label: 'Orden Aceptada', short: 'ACEP',   stripe: 'bg-sky-500',    badge: 'bg-sky-50 text-sky-700 border-sky-200',            dot: 'bg-sky-500' },
   IN_PROGRESS: { label: 'En Ejecución', short: 'ACTIVA',  stripe: 'bg-amber-500',  badge: 'bg-amber-50 text-amber-600 border-amber-200',      dot: 'bg-amber-500', pulse: true },
   COMPLETED:   { label: 'Completada',   short: 'COMP',    stripe: 'bg-emerald-500',badge: 'bg-emerald-50 text-emerald-600 border-emerald-200',dot: 'bg-emerald-500' },
   VALIDATED:   { label: 'Validada',     short: 'VAL',     stripe: 'bg-green-600',  badge: 'bg-green-50 text-green-700 border-green-200',      dot: 'bg-green-600' },
