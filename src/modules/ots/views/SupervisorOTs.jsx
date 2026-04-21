@@ -348,7 +348,7 @@ export default function SupervisorOTs() {
     doc.save(`AER_${ot.otNumber || ot.id}.pdf`);
   };
 
-  const toggleOtAccordion = async (otId) => {
+  const toggleOtAccordion = (otId) => {
     if (expandedOtId === otId) {
       setExpandedOtId(null);
       return;
@@ -356,15 +356,11 @@ export default function SupervisorOTs() {
 
     setExpandedOtId(otId);
 
-    // Solo cargar si no lo tenemos o para refrescar
-    setLoadingFinancials(prev => ({ ...prev, [otId]: true }));
-    try {
-      const financials = await otService.getOTFinancials(otId);
-      setOtFinancials(prev => ({ ...prev, [otId]: financials }));
-    } catch (err) {
-      console.error("Error cargando financieros:", err);
-    } finally {
-      setLoadingFinancials(prev => ({ ...prev, [otId]: false }));
+    // Los financieros ya vienen inyectados en el objeto 'ot' desde el backend
+    // No necesitamos hacer peticiones adicionales aquí
+    const ot = ots.find(o => o.id === otId);
+    if (ot && ot.financials) {
+      setOtFinancials(prev => ({ ...prev, [otId]: ot.financials }));
     }
   };
 

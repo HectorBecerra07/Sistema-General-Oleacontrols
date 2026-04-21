@@ -178,20 +178,33 @@ export default async function handler(req, res) {
           createdAt: true,
           technician: { select: { name: true, avatar: true, position: true } },
           supervisor: { select: { name: true } },
-          evidences: { select: { url: true } }, // Traemos solo las URLs
-          _count: {
-              select: { 
-                  expenses: true
-              }
+          evidences: { select: { url: true } },
+          expenses: {
+            where: { NOT: { status: 'REJECTED' } },
+            select: { amount: true, category: true, description: true, createdAt: true, id: true }
           }
         },
         orderBy: { createdAt: 'desc' }
       });
 
-      // Procesar cada OT para firmar su acta de entrega si existe
+      // Procesar cada OT para inyectar financieros y firmar URLs necesarias
       const formattedOts = await Promise.all(ots.map(async (ot) => {
-        // FIRMAR URL DEL ACTA para que el supervisor la vea fácil
-        const signedActUrl = await signUrlIfNeeded(ot.deliveryActUrl);
+        // Cálculo de financieros
+        const totalSpent = ot.expenses.reduce((sum, e) => sum + e.amount, 0);
+        const balance = (ot.assignedFunds || 0) - totalSpent;
+        const financials = {
+            assignedFunds: ot.assignedFunds || 0,
+            totalSpent,
+            balance,
+            isOverLimit: balance < 0,
+            expenses: ot.expenses.map(e => ({ ...e, date: e.createdAt }))
+        };
+
+        // FIRMAR URL DEL ACTA solo si existe
+        let signedActUrl = ot.deliveryActUrl;
+        if (ot.deliveryActUrl && (ot.status === 'COMPLETED' || ot.status === 'VALIDATED')) {
+            signedActUrl = await signUrlIfNeeded(ot.deliveryActUrl);
+        }
 
         return {
           ...ot,
@@ -203,9 +216,9 @@ export default async function handler(req, res) {
           lat: ot.latitude,
           lng: ot.longitude,
           location: ot.address,
-          expensesSubmitted: ot._count.expenses,
-          completionPhotos: ot.evidences.map(e => e.url), // Restauramos las fotos
-          deliveryActUrl: signedActUrl, // URL FIRMADA (Corta y funcional)
+          financials,
+          completionPhotos: ot.evidences.map(e => e.url),
+          deliveryActUrl: signedActUrl,
           assistantTechs: ot.assistantTechs ? (typeof ot.assistantTechs === 'string' ? JSON.parse(ot.assistantTechs) : ot.assistantTechs) : [],
           supportTechs: ot.supportTechs ? (typeof ot.supportTechs === 'string' ? JSON.parse(ot.supportTechs) : ot.supportTechs) : [],
           creatorName: 'Sistema',
