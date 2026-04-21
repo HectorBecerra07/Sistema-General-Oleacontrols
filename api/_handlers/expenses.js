@@ -36,25 +36,50 @@ export default async function handler(req, res) {
           category: true,
           description: true,
           paymentMethod: true,
-          receipt: true, // Restauramos el recibo para que el frontend pueda mostrarlo
+          receipt: true, 
           status: true,
           comment: true,
           workOrderId: true,
           employeeId: true,
           createdAt: true,
           employee: { select: { name: true } },
-          workOrder: { select: { otNumber: true, title: true } }
+          workOrder: { 
+            select: { 
+              otNumber: true, 
+              title: true,
+              assignedFunds: true,
+              expenses: {
+                where: { NOT: { status: 'REJECTED' } },
+                select: { amount: true }
+              }
+            } 
+          }
         },
         orderBy: { createdAt: 'desc' }
       });
 
       // Mapear para compatibilidad con el frontend
-      const formatted = expenses.map(e => ({
-          ...e,
-          otId: e.workOrder?.otNumber, // El frontend espera el folio
-          userId: e.employeeId,
-          date: new Date(e.createdAt).toISOString().split('T')[0] // Formatear fecha
-      }));
+      const formatted = expenses.map(e => {
+          let financials = null;
+          if (e.workOrder) {
+              const totalSpent = e.workOrder.expenses.reduce((sum, ex) => sum + ex.amount, 0);
+              const balance = (e.workOrder.assignedFunds || 0) - totalSpent;
+              financials = {
+                  assignedFunds: e.workOrder.assignedFunds || 0,
+                  totalSpent,
+                  balance,
+                  isOverLimit: balance < 0
+              };
+          }
+
+          return {
+              ...e,
+              otId: e.workOrder?.otNumber,
+              userId: e.employeeId,
+              date: new Date(e.createdAt).toISOString().split('T')[0],
+              financials
+          };
+      });
 
       return res.status(200).json(formatted);
     } catch (error) {

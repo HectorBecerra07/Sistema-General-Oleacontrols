@@ -31,15 +31,12 @@ export default function ApprovalsList() {
     return () => clearInterval(interval);
   }, []);
 
-  const loadPendingExpenses = async () => {
-    setLoading(true);
+  const loadPendingExpenses = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
         const data = await expenseService.getAll({ status: 'PENDING' });
-        const enriched = await Promise.all(data.map(async e => {
-          const financials = await otService.getOTFinancials(e.otId);
-          return { ...e, financials };
-        }));
-        setExpenses(enriched);
+        // Ya no necesitamos enriquecer aquí porque el backend lo hace
+        setExpenses(data);
     } catch (error) {
         console.error("Error:", error);
     } finally {
@@ -57,20 +54,28 @@ export default function ApprovalsList() {
 
   const handleAction = async (exp, status) => {
     setProcessingId(exp.id);
+    
+    // Actualización optimista: removemos el gasto de la lista localmente de inmediato
+    const originalExpenses = [...expenses];
+    setExpenses(prev => prev.filter(e => e.id !== exp.id));
+
     try {
         const comment = status === 'APPROVED' ? 'Aprobado' : 'Rechazado';
         
-        // 1. Actualizar el estado del gasto
+        // 1. Actualizar el estado del gasto en el servidor
         await expenseService.updateStatus(exp.id, status, comment);
 
-        // 2. Si es aprobado y excede fondo, inyectamos el excedente (opcional según política)
+        // 2. Si es aprobado y excede fondo, inyectamos el excedente
         if (status === 'APPROVED' && exp.financials?.isOverLimit) {
-          await otService.addSupplementalFunds(exp.otId, exp.amount);
+          // No esperamos a que termine para no bloquear la UI
+          otService.addSupplementalFunds(exp.otId, exp.amount).catch(console.error);
         }
 
-        // 3. Recargar lista
-        await loadPendingExpenses();
+        // 3. Sincronizar en segundo plano si es necesario (opcional)
+        // loadPendingExpenses(true); 
     } catch (error) {
+        // Si falla, revertimos el cambio local
+        setExpenses(originalExpenses);
         alert("Error al procesar: " + error.message);
     } finally {
         setProcessingId(null);
