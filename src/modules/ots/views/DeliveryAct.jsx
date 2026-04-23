@@ -428,7 +428,7 @@ export default function DeliveryAct() {
           ...formData,
           tscSignature: tscSigBase64,
           clientSignature: clientSigBase64,
-          photos: formData.photos
+          photos: photoUrls
       });
       log(`PDF generado: ${Math.round(pdfBase64.length / 1024)} KB`);
 
