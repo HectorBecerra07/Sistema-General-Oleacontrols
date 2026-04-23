@@ -358,7 +358,8 @@ function CategoriesPanel({ categories, onRename, onDelete }) {
 // ── Vista principal ────────────────────────────────────────────────────────────
 export default function ProductCatalog({ onAddToQuote }) {
   const { user } = useAuth();
-  const isAdmin  = user?.role === ROLES.ADMIN || user?.role === ROLES.SALES;
+  const isAdmin  = user?.roles?.includes('ADMIN') || user?.role === ROLES.ADMIN
+               || user?.roles?.includes('SALES')  || user?.role === ROLES.SALES;
 
   const [products, setProducts]   = useState([]);
   const [total, setTotal]         = useState(0);
