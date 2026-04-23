@@ -135,7 +135,10 @@ export default function DeliveryAct() {
                       const canvas = document.createElement('canvas');
                       canvas.width = w;
                       canvas.height = h;
-                      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                      const ctx = canvas.getContext('2d');
+                      ctx.fillStyle = '#ffffff';
+                      ctx.fillRect(0, 0, w, h);
+                      ctx.drawImage(img, 0, 0, w, h);
                       resolve(canvas.toDataURL('image/jpeg', 0.85));
                   } catch (e) { resolve(null); }
               };
@@ -425,7 +428,7 @@ export default function DeliveryAct() {
           ...formData,
           tscSignature: tscSigBase64,
           clientSignature: clientSigBase64,
-          photos: photoUrls
+          photos: formData.photos
       });
       log(`PDF generado: ${Math.round(pdfBase64.length / 1024)} KB`);
 
