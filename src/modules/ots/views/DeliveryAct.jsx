@@ -123,8 +123,12 @@ export default function DeliveryAct() {
   const loadBase64 = async (url) => {
       try {
           const res = await fetch(url);
+          if (!res.ok) return null;
           const text = await res.text();
-          return `data:image/png;base64,${text.trim()}`;
+          // Eliminar TODOS los espacios en blanco internos del base64
+          const clean = text.replace(/\s/g, '');
+          if (!clean) return null;
+          return `data:image/png;base64,${clean}`;
       } catch (err) {
           console.error("Error cargando logo:", url, err);
           return null;
@@ -139,8 +143,8 @@ export default function DeliveryAct() {
   doc.rect(0, 0, pageWidth, 40, 'F');
 
   // Logos más pequeños y balanceados
-  if (insigniaB64) doc.addImage(insigniaB64, 'PNG', margin, 8, 24, 24);
-  if (logoB64) doc.addImage(logoB64, 'PNG', pageWidth - margin - 45, 12, 45, 12);
+  if (insigniaB64) { try { doc.addImage(insigniaB64, 'PNG', margin, 8, 24, 24); } catch (e) { console.warn('Logo insignia no cargó:', e.message); } }
+  if (logoB64) { try { doc.addImage(logoB64, 'PNG', pageWidth - margin - 45, 12, 45, 12); } catch (e) { console.warn('Logo olea no cargó:', e.message); } }
 
   doc.setTextColor(7, 89, 133); // Azul Oceano Oscuro para el texto (Sky 800)
   doc.setFont("helvetica", "bold");
@@ -392,6 +396,7 @@ export default function DeliveryAct() {
   } finally { setIsSaving(false); }
   };
   if (loading) return <div className="p-20 text-center font-black animate-pulse">CARGANDO ACTA...</div>;
+  if (!ot) return <div className="p-20 text-center font-bold text-red-400 italic">No se pudo cargar la orden. Vuelve atrás e intenta de nuevo.</div>;
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-32 animate-in fade-in duration-500">
