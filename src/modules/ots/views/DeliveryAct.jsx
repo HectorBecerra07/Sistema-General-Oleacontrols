@@ -348,11 +348,8 @@ export default function DeliveryAct() {
       });
   }
 
-  // Descargar el archivo localmente para el técnico
-  try { doc.save(`AER_${ot.otNumber}.pdf`); } catch (e) { console.error("Error al descargar PDF local:", e); }
-
   // Devolver como base64 para subir a R2
-  return doc.output('datauristring'); 
+  return doc.output('datauristring');
   };
 
   // Convierte cualquier data URI a JPEG con fondo blanco y tamaño máximo 600px.
@@ -452,6 +449,8 @@ export default function DeliveryAct() {
       });
 
       log('✅ COMPLETADO');
+      // Descargar PDF localmente usando la URL de R2 (fuera del flujo de fetch para no interrumpirlo)
+      try { window.open(pdfUrl, '_blank'); } catch (e) { /* no bloquear navegación si falla */ }
       navigate('/ots');
   } catch (err) {
       console.error("Error crítico al finalizar acta:", err);
