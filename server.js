@@ -24,6 +24,7 @@ import otClientsHandler from './api/_handlers/ot-clients.js';
 import otTemplatesHandler from './api/_handlers/ot-templates.js';
 import calendarHandler from './api/_handlers/calendar.js';
 import portalHandler from './api/_handlers/portal.js';
+import catalogHandler from './api/_handlers/catalog.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -146,6 +147,12 @@ app.get('/api/ot-templates', adaptHandler(otTemplatesHandler));
 app.post('/api/ot-templates', adaptHandler(otTemplatesHandler));
 app.put('/api/ot-templates', adaptHandler(otTemplatesHandler));
 app.delete('/api/ot-templates', adaptHandler(otTemplatesHandler));
+
+// Catálogo de Productos
+app.get('/api/catalog', adaptHandler(catalogHandler));
+app.post('/api/catalog', adaptHandler(catalogHandler));
+app.put('/api/catalog', adaptHandler(catalogHandler));
+app.delete('/api/catalog', adaptHandler(catalogHandler));
 
 // Calendar
 app.get('/api/calendar', adaptHandler(calendarHandler));

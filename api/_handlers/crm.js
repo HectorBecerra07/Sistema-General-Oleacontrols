@@ -77,15 +77,16 @@ export default async function handler(req, res) {
         return res.status(200).json(activities || []);
       }
 
-      // ── Feed global de actividades (admin) ────────────────────────────
+      // ── Feed global de actividades (admin y SALES) ────────────────────
       if (resource === 'activity-feed') {
-        if (!isAdmin) return res.status(403).json({ error: 'Solo admins' });
         const { sellerId, dealId: filterDeal, type: filterType, limit = '200' } = req.query;
 
         const where = {};
         if (filterDeal) where.dealId = filterDeal;
         if (filterType) where.type = filterType;
-        if (sellerId)   where.deal = { assignedToId: sellerId };
+        // Admin puede filtrar por vendedor; SALES solo ve sus propios tratos
+        if (isAdmin && sellerId) where.deal = { assignedToId: sellerId };
+        if (!isAdmin)            where.deal = { assignedToId: userId };
 
         const activities = await prisma.dealActivity.findMany({
           where,
@@ -101,6 +102,20 @@ export default async function handler(req, res) {
           take: parseInt(limit)
         });
         return res.status(200).json(activities || []);
+      }
+
+      // ── Seguimientos del vendedor ──────────────────────────────────────
+      if (resource === 'seguimientos') {
+        const where = isSales
+          ? { deal: { assignedToId: userId } }
+          : {};
+        const seguimientos = await prisma.dealActivity.findMany({
+          where,
+          include: { deal: { select: { id: true, title: true, company: true, stage: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: 500
+        });
+        return res.status(200).json(seguimientos || []);
       }
 
       // ── Métricas por vendedor ──────────────────────────────────────────

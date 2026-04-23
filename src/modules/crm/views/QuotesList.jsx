@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Plus, FileText, Download, Search, Trash2, PlusCircle, Building2,
   User, Calendar, DollarSign, X, Save, CheckCircle2, AlertCircle,
   Clock, Hash, Send, Edit3, ExternalLink, ChevronRight, TrendingUp,
-  BarChart2, Percent, Eye, RefreshCw, Package
+  BarChart2, Percent, Eye, RefreshCw, Package, Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/store/AuthContext';
@@ -26,6 +26,109 @@ const generateQuoteNumber = () =>
 
 const emptyItem = () => ({ serial: '', name: '', desc: '', qty: 1, price: 0, total: 0 });
 
+// ── Buscador de productos del catálogo ────────────────────────────────────────
+function ProductSearchModal({ onSelect, onClose }) {
+  const [query, setQuery]       = useState('');
+  const [results, setResults]   = useState([]);
+  const [loading, setLoading]   = useState(false);
+  const inputRef = useRef();
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const search = useCallback(async (q) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ search: q, status: 'ALL', limit: '40', page: '1' });
+      const res  = await apiFetch(`/api/catalog?${params}`);
+      const data = await res.json();
+      setResults(data.products || []);
+    } catch { setResults([]); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => search(query), 280);
+    return () => clearTimeout(t);
+  }, [query, search]);
+
+  const fmtP = (n, cur) =>
+    `${cur === 'USD' ? 'US$' : 'MX$'} ${parseFloat(n || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl flex flex-col" style={{ maxHeight: '80vh' }}>
+        {/* Header */}
+        <div className="flex items-center gap-3 p-5 border-b border-gray-100">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
+            <input
+              ref={inputRef}
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-primary"
+              placeholder="Buscar por nombre, SKU, marca, categoría..."
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+            />
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full flex-shrink-0">
+            <X className="h-5 w-5 text-gray-400" />
+          </button>
+        </div>
+
+        {/* Resultados */}
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center h-32 gap-2 text-gray-400">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span className="text-[10px] font-black uppercase tracking-widest">Buscando...</span>
+            </div>
+          ) : results.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-32 gap-2 text-gray-300">
+              <Package className="h-8 w-8" />
+              <p className="text-[9px] font-black uppercase tracking-widest">
+                {query ? 'Sin resultados' : 'Escribe para buscar productos'}
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {results.map(p => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => { onSelect(p); onClose(); }}
+                  className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-primary/5 transition-colors text-left group"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[8px] font-black text-primary bg-primary/10 px-2 py-0.5 rounded-lg font-mono">{p.sku}</span>
+                      {p.brand && <span className="text-[8px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-lg">{p.brand}</span>}
+                      {p.category && <span className="text-[8px] font-bold text-gray-400">{p.category}</span>}
+                    </div>
+                    <p className="text-xs font-black text-gray-800 mt-1 leading-tight truncate">{p.name}</p>
+                    {p.description && <p className="text-[9px] text-gray-400 font-medium truncate mt-0.5">{p.description}</p>}
+                  </div>
+                  <div className="flex-shrink-0 text-right">
+                    <p className="text-sm font-black text-gray-900">
+                      {fmtP(p.price, p.currency)}
+                    </p>
+                    <p className="text-[8px] font-bold text-gray-400">/{p.unit}</p>
+                  </div>
+                  <Plus className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50">
+          <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest text-center">
+            {results.length > 0 ? `${results.length} resultado${results.length !== 1 ? 's' : ''} · haz clic para agregar al concepto` : 'Catálogo OleaControls'}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function QuotesList() {
   const { user } = useAuth();
   const location = useLocation();
@@ -47,6 +150,7 @@ export default function QuotesList() {
   const [showAddModal,  setShowAddModal]  = useState(false);
   const [isGenerating,  setIsGenerating]  = useState(false);
   const [fromDealMeta,  setFromDealMeta]  = useState(null); // deal del que proviene la cotización
+  const [prodSearch,    setProdSearch]    = useState(null); // { index, mode:'new'|'edit' }
   const [clientMode,    setClientMode]    = useState('existing'); // 'existing' | 'new'
   const initialNewClientData = () => ({ companyName: '', contactName: '', email: '', phone: '', rfc: '', address: '' });
   const [newClientData, setNewClientData] = useState(initialNewClientData());
@@ -229,6 +333,27 @@ export default function QuotesList() {
     ni[index] = { ...ni[index], [field]: value };
     if (field === 'qty' || field === 'price') ni[index].total = Number(ni[index].qty) * Number(ni[index].price);
     setNewQuote(f => ({ ...f, items: ni }));
+  };
+
+  // Llenar concepto desde catálogo
+  const fillFromProduct = (product) => {
+    if (!prodSearch) return;
+    const { index, mode } = prodSearch;
+    const patch = {
+      serial: product.sku,
+      name:   product.name,
+      desc:   product.description || '',
+      price:  product.price || 0,
+    };
+    if (mode === 'new') {
+      const ni = [...newQuote.items];
+      ni[index] = { ...ni[index], ...patch, total: Number(ni[index].qty) * Number(product.price || 0) };
+      setNewQuote(f => ({ ...f, items: ni }));
+    } else {
+      const ni = [...(editQuote.items || [])];
+      ni[index] = { ...ni[index], ...patch, total: Number(ni[index].qty) * Number(product.price || 0) };
+      setEditQuote(f => ({ ...f, items: ni }));
+    }
   };
 
   const addEditItem = () => setEditQuote(f => ({ ...f, items: [...(f.items || []), emptyItem()] }));
@@ -731,18 +856,29 @@ export default function QuotesList() {
                   </div>
 
                   {newQuote.items.map((item, index) => (
-                    <div key={index} className="grid grid-cols-1 sm:grid-cols-12 gap-2 p-4 bg-gray-50 rounded-2xl items-center">
-                      <input className="col-span-12 sm:col-span-2 bg-white rounded-lg p-2.5 text-[10px] font-black uppercase outline-none" placeholder="Nº Serie" value={item.serial} onChange={e => updateItem(index, 'serial', e.target.value)} />
-                      <div className="col-span-12 sm:col-span-4 space-y-1.5">
-                        <input className="w-full bg-white rounded-lg p-2.5 text-[10px] font-bold outline-none" placeholder="Nombre del producto / servicio" value={item.name} onChange={e => updateItem(index, 'name', e.target.value)} />
-                        <input className="w-full bg-white/60 rounded-lg p-2 text-[9px] text-gray-500 outline-none" placeholder="Descripción adicional" value={item.desc} onChange={e => updateItem(index, 'desc', e.target.value)} />
+                    <div key={index} className="p-4 bg-gray-50 rounded-2xl space-y-2">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setProdSearch({ index, mode: 'new' })}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all flex-shrink-0"
+                        >
+                          <Search className="h-3 w-3" /> Catálogo
+                        </button>
+                        <input className="flex-1 bg-white rounded-lg p-2.5 text-[10px] font-black uppercase outline-none" placeholder="Nº Serie / SKU" value={item.serial} onChange={e => updateItem(index, 'serial', e.target.value)} />
+                        <button type="button" onClick={() => removeItem(index)}>
+                          <X className="h-4 w-4 text-red-400 hover:text-red-600" />
+                        </button>
                       </div>
-                      <input className="col-span-12 sm:col-span-2 bg-white rounded-lg p-2.5 text-[10px] text-center font-bold outline-none" type="number" min="1" value={item.qty} onChange={e => updateItem(index, 'qty', parseInt(e.target.value) || 1)} onFocus={e => e.target.select()} />
-                      <input className="col-span-12 sm:col-span-2 bg-white rounded-lg p-2.5 text-[10px] font-bold outline-none" type="number" min="0" step="0.01" placeholder="0.00" value={item.price} onChange={e => updateItem(index, 'price', parseFloat(e.target.value) || 0)} onFocus={e => e.target.select()} />
-                      <div className="col-span-12 sm:col-span-1 text-right font-black text-xs text-gray-900">{fmt(item.qty * item.price)}</div>
-                      <button type="button" className="col-span-12 sm:col-span-1 flex justify-end" onClick={() => removeItem(index)}>
-                        <X className="h-4 w-4 text-red-400 hover:text-red-600" />
-                      </button>
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                        <div className="col-span-12 sm:col-span-5 space-y-1.5">
+                          <input className="w-full bg-white rounded-lg p-2.5 text-[10px] font-bold outline-none" placeholder="Nombre del producto / servicio" value={item.name} onChange={e => updateItem(index, 'name', e.target.value)} />
+                          <input className="w-full bg-white/60 rounded-lg p-2 text-[9px] text-gray-500 outline-none" placeholder="Descripción adicional" value={item.desc} onChange={e => updateItem(index, 'desc', e.target.value)} />
+                        </div>
+                        <input className="col-span-12 sm:col-span-2 bg-white rounded-lg p-2.5 text-[10px] text-center font-bold outline-none" type="number" min="1" value={item.qty} onChange={e => updateItem(index, 'qty', parseInt(e.target.value) || 1)} onFocus={e => e.target.select()} />
+                        <input className="col-span-12 sm:col-span-3 bg-white rounded-lg p-2.5 text-[10px] font-bold outline-none" type="number" min="0" step="0.01" placeholder="0.00" value={item.price} onChange={e => updateItem(index, 'price', parseFloat(e.target.value) || 0)} onFocus={e => e.target.select()} />
+                        <div className="col-span-12 sm:col-span-2 text-right font-black text-xs text-gray-900">{fmt(item.qty * item.price)}</div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -786,6 +922,14 @@ export default function QuotesList() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ── Buscador de catálogo ─────────────────────────────────────────── */}
+      {prodSearch && (
+        <ProductSearchModal
+          onSelect={fillFromProduct}
+          onClose={() => setProdSearch(null)}
+        />
+      )}
     </div>
   );
 }
@@ -983,18 +1127,29 @@ function QuoteEditForm({ editQuote, setEditQuote, employees, onAddItem, onRemove
         </div>
 
         {(editQuote.items || []).map((item, i) => (
-          <div key={i} className="grid grid-cols-12 gap-2 p-3 bg-gray-50 rounded-2xl items-center">
-            <input className="col-span-2 bg-white rounded-lg p-2 text-[9px] font-black uppercase outline-none" placeholder="Nº Serie" value={item.serial || ''} onChange={e => onUpdateItem(i, 'serial', e.target.value)} />
-            <div className="col-span-4 space-y-1">
-              <input className="w-full bg-white rounded-lg p-2 text-[9px] font-bold outline-none" placeholder="Producto / Servicio" value={item.name || ''} onChange={e => onUpdateItem(i, 'name', e.target.value)} />
-              <input className="w-full bg-white/60 rounded-lg p-1.5 text-[8px] text-gray-500 outline-none" placeholder="Descripción" value={item.desc || ''} onChange={e => onUpdateItem(i, 'desc', e.target.value)} />
+          <div key={i} className="p-3 bg-gray-50 rounded-2xl space-y-2">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setProdSearch({ index: i, mode: 'edit' })}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all flex-shrink-0"
+              >
+                <Search className="h-3 w-3" /> Catálogo
+              </button>
+              <input className="flex-1 bg-white rounded-lg p-2 text-[9px] font-black uppercase outline-none" placeholder="Nº Serie / SKU" value={item.serial || ''} onChange={e => onUpdateItem(i, 'serial', e.target.value)} />
+              <button type="button" onClick={() => onRemoveItem(i)}>
+                <X className="h-3.5 w-3.5 text-red-400" />
+              </button>
             </div>
-            <input className="col-span-1 bg-white rounded-lg p-2 text-[9px] text-center font-bold outline-none" type="number" min="1" value={item.qty} onChange={e => onUpdateItem(i, 'qty', parseInt(e.target.value) || 1)} onFocus={e => e.target.select()} />
-            <input className="col-span-2 bg-white rounded-lg p-2 text-[9px] font-bold outline-none" type="number" min="0" step="0.01" placeholder="Precio" value={item.price} onChange={e => onUpdateItem(i, 'price', parseFloat(e.target.value) || 0)} onFocus={e => e.target.select()} />
-            <div className="col-span-2 text-right font-black text-xs text-gray-900">{fmt(Number(item.qty) * Number(item.price))}</div>
-            <button type="button" onClick={() => onRemoveItem(i)} className="col-span-1 flex justify-center">
-              <X className="h-3.5 w-3.5 text-red-400" />
-            </button>
+            <div className="grid grid-cols-12 gap-2 items-center">
+              <div className="col-span-5 space-y-1">
+                <input className="w-full bg-white rounded-lg p-2 text-[9px] font-bold outline-none" placeholder="Producto / Servicio" value={item.name || ''} onChange={e => onUpdateItem(i, 'name', e.target.value)} />
+                <input className="w-full bg-white/60 rounded-lg p-1.5 text-[8px] text-gray-500 outline-none" placeholder="Descripción" value={item.desc || ''} onChange={e => onUpdateItem(i, 'desc', e.target.value)} />
+              </div>
+              <input className="col-span-2 bg-white rounded-lg p-2 text-[9px] text-center font-bold outline-none" type="number" min="1" value={item.qty} onChange={e => onUpdateItem(i, 'qty', parseInt(e.target.value) || 1)} onFocus={e => e.target.select()} />
+              <input className="col-span-3 bg-white rounded-lg p-2 text-[9px] font-bold outline-none" type="number" min="0" step="0.01" placeholder="Precio" value={item.price} onChange={e => onUpdateItem(i, 'price', parseFloat(e.target.value) || 0)} onFocus={e => e.target.select()} />
+              <div className="col-span-2 text-right font-black text-xs text-gray-900">{fmt(Number(item.qty) * Number(item.price))}</div>
+            </div>
           </div>
         ))}
       </div>

@@ -4,7 +4,8 @@ import {
   User, Building2, Mail, Phone, Target, TrendingUp, Activity,
   MessageSquare, PhoneCall, Send, Coffee, CheckSquare, Clock,
   Edit3, Link2, ChevronDown, Award, AlertCircle, Search, Filter,
-  BarChart2, Percent, SlidersHorizontal, ArrowRight, FileText
+  BarChart2, Percent, SlidersHorizontal, ArrowRight, FileText,
+  ClipboardList, Hash, Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -116,6 +117,16 @@ export default function DealsKanban() {
   // Modal razón de cierre (ganado/perdido)
   const [closeModal, setCloseModal] = useState({ show: false, stage: '', reason: '', saving: false, pendingDrop: null });
 
+  // Seguimientos
+  const [seguimientos, setSeguimientos] = useState([]);
+  const [seguimientosLoading, setSeguimientosLoading] = useState(false);
+  const [newSeg, setNewSeg] = useState({ dealId: '', observations: '', date: new Date().toISOString().split('T')[0] });
+  const [addingSeg, setAddingSeg] = useState(false);
+
+  // Actividades globales (sección independiente)
+  const [newGlobalAct, setNewGlobalAct] = useState({ type: 'NOTE', content: '', dueDate: '', dealId: '' });
+  const [addingGlobalAct, setAddingGlobalAct] = useState(false);
+
   // ── Fetches ──────────────────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -135,8 +146,67 @@ export default function DealsKanban() {
     finally { setLoading(false); }
   }, []);
 
+  const fetchSeguimientos = async () => {
+    setSeguimientosLoading(true);
+    try {
+      const res = await apiFetch('/api/crm/seguimientos');
+      const data = await res.json();
+      setSeguimientos(Array.isArray(data) ? data : []);
+    } catch (err) { console.error(err); }
+    finally { setSeguimientosLoading(false); }
+  };
+
+  const addSeguimiento = async (e) => {
+    e.preventDefault();
+    if (!newSeg.dealId || !newSeg.observations.trim()) return;
+    setAddingSeg(true);
+    try {
+      const res = await apiFetch('/api/crm/deal-activities', {
+        method: 'POST',
+        body: JSON.stringify({
+          dealId: newSeg.dealId,
+          type: 'SEGUIMIENTO',
+          content: newSeg.observations,
+          dueDate: newSeg.date ? new Date(newSeg.date).toISOString() : null,
+          authorName: user?.name || 'Usuario',
+          status: 'PENDING',
+        })
+      });
+      if (res.ok) {
+        setNewSeg({ dealId: '', observations: '', date: new Date().toISOString().split('T')[0] });
+        fetchSeguimientos();
+      }
+    } catch (err) { console.error(err); }
+    finally { setAddingSeg(false); }
+  };
+
+  const addGlobalActivity = async (e) => {
+    e.preventDefault();
+    if (!newGlobalAct.content.trim() || !newGlobalAct.dealId) return;
+    setAddingGlobalAct(true);
+    try {
+      const res = await apiFetch('/api/crm/deal-activities', {
+        method: 'POST',
+        body: JSON.stringify({
+          dealId: newGlobalAct.dealId,
+          type: newGlobalAct.type,
+          content: newGlobalAct.content,
+          dueDate: newGlobalAct.dueDate ? new Date(newGlobalAct.dueDate).toISOString() : null,
+          authorName: user?.name || 'Usuario',
+          status: 'PENDING',
+        })
+      });
+      if (res.ok) {
+        setNewGlobalAct({ type: 'NOTE', content: '', dueDate: '', dealId: '' });
+        fetchSeguimientos();
+      }
+    } catch (err) { console.error(err); }
+    finally { setAddingGlobalAct(false); }
+  };
+
   useEffect(() => {
     fetchAll();
+    fetchSeguimientos();
     apiFetch('/api/config?key=CRM_PIPELINE_STAGES')
       .then(r => r.json())
       .then(data => { if (Array.isArray(data) && data.length > 0) setDealStages(normalizeStages(data)); })
@@ -310,6 +380,7 @@ export default function DealsKanban() {
   // ── Cambiar estado de actividad (semáforo) ───────────────────────────────────
   const updateActivityStatus = async (actId, newStatus) => {
     setActivities(prev => prev.map(a => a.id === actId ? { ...a, status: newStatus } : a));
+    setSeguimientos(prev => prev.map(a => a.id === actId ? { ...a, status: newStatus } : a));
     try {
       await apiFetch('/api/crm/deal-activities', {
         method: 'PUT',
@@ -504,8 +575,9 @@ export default function DealsKanban() {
         </div>
 
         {/* ── Kanban Board ────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-x-auto overflow-y-hidden">
-          <div className="flex gap-3 h-full p-4 pb-6 min-w-max">
+        <div className="flex-1 overflow-y-auto">
+          <div className="h-[56vh] min-h-[380px] overflow-x-auto overflow-y-hidden">
+            <div className="flex gap-3 h-full p-4 pb-6 min-w-max">
             {dealStages.map((stage) => {
               const stageDeals = filteredDeals.filter(d => d.stage === stage.id);
               const stageValue = stageDeals.reduce((s, d) => s + (d.value || 0), 0);
@@ -563,7 +635,31 @@ export default function DealsKanban() {
                 </div>
               );
             })}
+            </div>
           </div>
+
+          {/* ── Seguimientos ─────────────────────────────────────────────── */}
+          <SeguimientosSection
+            seguimientos={seguimientos}
+            loading={seguimientosLoading}
+            newSeg={newSeg}
+            setNewSeg={setNewSeg}
+            deals={deals.filter(d => !['CLOSED_WON', 'CLOSED_LOST'].includes(d.stage))}
+            onAdd={addSeguimiento}
+            adding={addingSeg}
+          />
+
+          {/* ── Actividades ──────────────────────────────────────────────── */}
+          <ActividadesSection
+            actividades={seguimientos.filter(s => s.type !== 'SEGUIMIENTO' && s.type !== 'STAGE_CHANGE')}
+            loading={seguimientosLoading}
+            newAct={newGlobalAct}
+            setNewAct={setNewGlobalAct}
+            deals={deals}
+            onAdd={addGlobalActivity}
+            adding={addingGlobalAct}
+            onUpdateStatus={updateActivityStatus}
+          />
         </div>
       </div>
 
@@ -638,47 +734,19 @@ export default function DealsKanban() {
               </div>
             </div>
 
-            {/* Tabs */}
-            <div className="flex border-b border-gray-100 flex-shrink-0">
-              {[{ id: 'info', label: 'Información' }, { id: 'activities', label: 'Actividades' }].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setPanelTab(tab.id)}
-                  className={cn(
-                    "flex-1 py-3 text-[9px] font-black uppercase tracking-widest transition-colors",
-                    panelTab === tab.id ? 'text-primary border-b-2 border-primary' : 'text-gray-400 hover:text-gray-600'
-                  )}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
             {/* Panel content */}
             <div className="flex-1 overflow-y-auto p-5">
-              {panelTab === 'info' ? (
-                <DealInfoPanel
-                  editForm={editForm}
-                  setEditForm={setEditForm}
-                  clients={clients}
-                  employees={employees}
-                  onSave={saveDeal}
-                  saving={saving}
-                  deal={selectedDeal}
-                  onDelete={() => deleteDeal(selectedDeal)}
-                  onGenerateQuote={openQuoteModal}
-                />
-              ) : (
-                <ActivitiesPanel
-                  activities={activities}
-                  loading={activitiesLoading}
-                  newActivity={newActivity}
-                  setNewActivity={setNewActivity}
-                  onAdd={addActivity}
-                  adding={addingActivity}
-                  onUpdateStatus={updateActivityStatus}
-                />
-              )}
+              <DealInfoPanel
+                editForm={editForm}
+                setEditForm={setEditForm}
+                clients={clients}
+                employees={employees}
+                onSave={saveDeal}
+                saving={saving}
+                deal={selectedDeal}
+                onDelete={() => deleteDeal(selectedDeal)}
+                onGenerateQuote={openQuoteModal}
+              />
             </div>
           </motion.div>
         )}
@@ -999,6 +1067,21 @@ export default function DealsKanban() {
 
 // ── Deal Card ──────────────────────────────────────────────────────────────────
 function DealCard({ deal, stage, isSelected, onClick, onDelete, onDragStart, onDragEnd }) {
+  // Días hasta el cierre
+  const daysUntilClose = deal.expectedClose
+    ? Math.ceil((new Date(deal.expectedClose) - Date.now()) / 86400000)
+    : null;
+  const closeColor = daysUntilClose === null ? null
+    : daysUntilClose < 0   ? 'text-red-500'
+    : daysUntilClose <= 7  ? 'text-amber-500'
+    : 'text-emerald-600';
+  const closeLabel = daysUntilClose === null ? null
+    : daysUntilClose < 0   ? `Vencido ${Math.abs(daysUntilClose)}d`
+    : daysUntilClose === 0 ? 'Hoy'
+    : `${daysUntilClose}d restantes`;
+
+  const prob = deal.probability ?? stage.prob ?? 0;
+
   return (
     <motion.div
       layout
@@ -1010,48 +1093,115 @@ function DealCard({ deal, stage, isSelected, onClick, onDelete, onDragStart, onD
       onDragEnd={onDragEnd}
       onClick={onClick}
       className={cn(
-        "bg-white rounded-2xl p-4 border cursor-pointer transition-all group select-none",
-        isSelected ? `border-2 ${stage.ring} shadow-md` : 'border-gray-100 hover:shadow-md hover:border-gray-200'
+        "bg-white rounded-2xl border cursor-pointer transition-all group select-none overflow-hidden",
+        isSelected ? `border-2 ${stage.ring} shadow-lg` : 'border-gray-100 hover:shadow-lg hover:border-gray-200'
       )}
     >
-      <div className="space-y-3">
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-[11px] font-black text-gray-900 leading-tight flex-1">{deal.title}</p>
+      {/* Barra de color de etapa */}
+      <div className={cn("h-1 w-full", stage.color)} />
+
+      <div className="p-3 space-y-2.5">
+
+        {/* Título + eliminar */}
+        <div className="flex items-start justify-between gap-1.5">
+          <p className="text-[11px] font-black text-gray-900 leading-tight flex-1 line-clamp-2">{deal.title}</p>
           <button
             onClick={e => { e.stopPropagation(); onDelete(); }}
-            className="opacity-0 group-hover:opacity-100 p-1 rounded-lg bg-red-50 text-red-400 hover:text-red-600 transition-all flex-shrink-0"
+            className="opacity-0 group-hover:opacity-100 p-1 rounded-lg bg-red-50 text-red-400 hover:text-red-600 transition-all flex-shrink-0 mt-0.5"
           >
             <Trash2 className="h-2.5 w-2.5" />
           </button>
         </div>
 
-        {deal.company && (
-          <p className="text-[8px] font-bold text-gray-400 flex items-center gap-1">
-            <Building2 className="h-2.5 w-2.5" /> {deal.company}
-          </p>
+        {/* Empresa + Contacto */}
+        <div className="space-y-1">
+          {deal.company && (
+            <p className="text-[8px] font-bold text-gray-500 flex items-center gap-1 truncate">
+              <Building2 className="h-2.5 w-2.5 flex-shrink-0 text-gray-400" />
+              {deal.company}
+            </p>
+          )}
+          {deal.contactName && (
+            <p className="text-[8px] font-bold text-gray-400 flex items-center gap-1 truncate">
+              <User className="h-2.5 w-2.5 flex-shrink-0" />
+              {deal.contactName}
+            </p>
+          )}
+          {deal.contactPhone && (
+            <p className="text-[8px] font-bold text-gray-400 flex items-center gap-1 truncate">
+              <Phone className="h-2.5 w-2.5 flex-shrink-0" />
+              {deal.contactPhone}
+            </p>
+          )}
+        </div>
+
+        {/* Valor + Probabilidad */}
+        <div className="pt-2 border-t border-gray-50 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className={cn("text-sm font-black", stage.text)}>{fmt(deal.value)}</span>
+            <span className="text-[9px] font-black text-gray-500">{prob}%</span>
+          </div>
+          {/* Barra de probabilidad */}
+          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className={cn("h-full rounded-full transition-all", stage.color)}
+              style={{ width: `${prob}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Fecha cierre + fuente */}
+        {(deal.expectedClose || deal.source) && (
+          <div className="flex items-center justify-between gap-1">
+            {deal.expectedClose && (
+              <div className="flex items-center gap-1">
+                <Calendar className="h-2.5 w-2.5 text-gray-300 flex-shrink-0" />
+                <span className={cn("text-[8px] font-black", closeColor || 'text-gray-400')}>
+                  {fmtDate(deal.expectedClose)}
+                </span>
+                {closeLabel && (
+                  <span className={cn("text-[7px] font-bold", closeColor)}>({closeLabel})</span>
+                )}
+              </div>
+            )}
+            {deal.source && (
+              <span className="text-[7px] font-black text-gray-300 bg-gray-50 px-1.5 py-0.5 rounded-lg truncate max-w-[60px]">
+                {deal.source}
+              </span>
+            )}
+          </div>
         )}
 
-        <div className="flex items-center justify-between pt-2 border-t border-gray-50">
-          <span className="text-[11px] font-black text-gray-900">{fmt(deal.value)}</span>
-          <div className="flex items-center gap-1">
+        {/* Footer: Vendedor + actividades + email */}
+        <div className="flex items-center justify-between pt-1.5 border-t border-gray-50">
+          <div className="flex items-center gap-1.5">
             {deal.assignedTo && (
-              <div className="h-5 w-5 rounded-full bg-primary text-white flex items-center justify-center text-[7px] font-black" title={deal.assignedTo.name}>
+              <div
+                className={cn("h-5 w-5 rounded-full flex items-center justify-center text-[7px] font-black text-white flex-shrink-0", stage.color)}
+                title={deal.assignedTo.name}
+              >
                 {deal.assignedTo.name.charAt(0)}
               </div>
             )}
+            {deal.assignedTo && (
+              <span className="text-[8px] font-bold text-gray-400 truncate max-w-[80px]">
+                {deal.assignedTo.name.split(' ')[0]}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {deal.contactEmail && (
+              <Mail className="h-2.5 w-2.5 text-gray-300" title={deal.contactEmail} />
+            )}
             {deal._count?.activities > 0 && (
-              <span className="text-[7px] font-black text-gray-400 flex items-center gap-0.5">
-                <MessageSquare className="h-2.5 w-2.5" />{deal._count.activities}
+              <span className="text-[7px] font-black text-gray-400 flex items-center gap-0.5 bg-gray-50 px-1.5 py-0.5 rounded-lg">
+                <MessageSquare className="h-2 w-2" />
+                {deal._count.activities}
               </span>
             )}
           </div>
         </div>
 
-        {deal.expectedClose && (
-          <p className="text-[7px] font-bold text-gray-400 flex items-center gap-1">
-            <Clock className="h-2 w-2" /> {fmtDate(deal.expectedClose)}
-          </p>
-        )}
       </div>
     </motion.div>
   );
@@ -1330,6 +1480,387 @@ function ActivitiesPanel({ activities, loading, newActivity, setNewActivity, onA
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Sección de Seguimientos ────────────────────────────────────────────────────
+const TIPO_META = {
+  NOTE:        { label: 'Nota',          color: 'bg-gray-100 text-gray-600' },
+  CALL:        { label: 'Llamada',       color: 'bg-blue-100 text-blue-700' },
+  EMAIL:       { label: 'Email',         color: 'bg-purple-100 text-purple-700' },
+  MEETING:     { label: 'Reunión',       color: 'bg-amber-100 text-amber-700' },
+  TASK:        { label: 'Tarea',         color: 'bg-emerald-100 text-emerald-700' },
+  SEGUIMIENTO: { label: 'Seguimiento',   color: 'bg-primary/10 text-primary' },
+  STAGE_CHANGE:{ label: 'Cambio etapa', color: 'bg-violet-100 text-violet-700' },
+};
+
+function ActividadesSection({ actividades, loading, newAct, setNewAct, deals, onAdd, adding, onUpdateStatus }) {
+  const typeMap = Object.fromEntries(ACTIVITY_TYPES.map(t => [t.id, t]));
+
+  const fmtDateTime = (d) => d
+    ? new Date(d).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : null;
+
+  return (
+    <div className="m-4 mb-8 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-3 px-6 py-5 border-b border-gray-100 bg-gray-50">
+        <div className="h-9 w-9 rounded-2xl bg-gray-900/10 flex items-center justify-center">
+          <Activity className="h-4 w-4 text-gray-700" />
+        </div>
+        <div>
+          <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight">Actividades</h3>
+          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Timeline global de actividades por trato</p>
+        </div>
+        <span className="ml-auto text-[10px] font-black text-gray-400 bg-white border rounded-xl px-3 py-1">
+          {actividades.length} registros
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-gray-100">
+        {/* Formulario */}
+        <form onSubmit={onAdd} className="p-6 space-y-4">
+          <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Registrar nueva actividad</p>
+
+          {/* Trato */}
+          <div className="space-y-1">
+            <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Trato *</label>
+            <select
+              required
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-xs outline-none focus:border-primary transition-colors"
+              value={newAct.dealId}
+              onChange={e => setNewAct(f => ({ ...f, dealId: e.target.value }))}
+            >
+              <option value="">— Seleccionar trato —</option>
+              {deals.map(d => (
+                <option key={d.id} value={d.id}>{d.title}{d.company ? ` · ${d.company}` : ''}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Tipo */}
+          <div className="space-y-1">
+            <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Tipo</label>
+            <div className="flex gap-2 flex-wrap">
+              {ACTIVITY_TYPES.map(t => (
+                <button
+                  key={t.id} type="button"
+                  onClick={() => setNewAct(f => ({ ...f, type: t.id }))}
+                  className={cn(
+                    "flex items-center gap-1 px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest border-2 transition-all",
+                    newAct.type === t.id ? 'border-gray-900 bg-gray-900/10 text-gray-900' : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                  )}
+                >
+                  <t.icon className="h-2.5 w-2.5" /> {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Detalle */}
+          <div className="space-y-1">
+            <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Detalle *</label>
+            <textarea
+              required
+              rows={4}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-medium text-xs outline-none focus:border-primary transition-colors resize-none"
+              placeholder="Escribe el detalle de la actividad..."
+              value={newAct.content}
+              onChange={e => setNewAct(f => ({ ...f, content: e.target.value }))}
+            />
+          </div>
+
+          {/* Fecha/hora */}
+          <div className="space-y-1">
+            <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">
+              Fecha y hora límite <span className="text-red-500">*</span>
+            </label>
+            <input
+              required
+              type="datetime-local"
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-xs outline-none focus:border-primary transition-colors"
+              value={newAct.dueDate}
+              onChange={e => setNewAct(f => ({ ...f, dueDate: e.target.value }))}
+            />
+            <p className="text-[7px] text-gray-400 font-bold">Si vence sin completarse aparecerá en rojo para el administrador</p>
+          </div>
+
+          <button
+            type="submit"
+            disabled={adding || !newAct.dealId || !newAct.content.trim() || !newAct.dueDate}
+            className="w-full bg-gray-900 text-white py-3 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-primary transition-all disabled:opacity-40 flex items-center justify-center gap-2"
+          >
+            {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            {adding ? 'Registrando...' : 'Agregar al Timeline'}
+          </button>
+        </form>
+
+        {/* Timeline */}
+        <div className="lg:col-span-2 p-6 overflow-y-auto max-h-[600px]">
+          {loading ? (
+            <div className="flex items-center justify-center h-40 gap-2 text-gray-400">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span className="text-[10px] font-black uppercase tracking-widest">Cargando...</span>
+            </div>
+          ) : actividades.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-40 gap-2 text-gray-300">
+              <Activity className="h-8 w-8" />
+              <p className="text-[9px] font-black uppercase tracking-widest">Sin actividades registradas</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {actividades.map((act, i) => {
+                const T = typeMap[act.type] || { label: act.type, icon: Activity, color: 'text-gray-500' };
+                const sMeta = STATUS_META[act.status] || STATUS_META.PENDING;
+                const due = fmtDateTime(act.dueDate);
+                const created = fmtDateTime(act.createdAt);
+                const isOverdue = act.dueDate && new Date(act.dueDate) < new Date() && act.status !== 'COMPLETED';
+                return (
+                  <div key={act.id} className={cn("flex gap-3 rounded-2xl transition-colors", isOverdue && "bg-red-50/60 p-2 -mx-2 border border-red-200")}>
+                    <div className="flex flex-col items-center">
+                      <div className={cn("h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0", isOverdue ? "bg-red-100 text-red-500" : cn("bg-gray-100", T.color))}>
+                        {isOverdue ? <AlertCircle className="h-3.5 w-3.5" /> : <T.icon className="h-3.5 w-3.5" />}
+                      </div>
+                      {i < actividades.length - 1 && <div className="w-px flex-1 bg-gray-100 mt-1" />}
+                    </div>
+                    <div className="flex-1 pb-4">
+                      <div className="flex items-center justify-between mb-1 gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={cn("text-[8px] font-black uppercase tracking-widest", isOverdue ? "text-red-500" : T.color)}>{T.label}</span>
+                          {isOverdue && (
+                            <span className="text-[7px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-red-500 text-white animate-pulse">
+                              VENCIDA
+                            </span>
+                          )}
+                          {onUpdateStatus && (
+                            <Semaphore
+                              status={act.status || 'PENDING'}
+                              onToggle={() => onUpdateStatus(act.id, STATUS_META[act.status || 'PENDING'].next)}
+                            />
+                          )}
+                          <span style={{ fontSize: 8, fontWeight: 700, color: isOverdue ? '#ef4444' : sMeta.color }}>
+                            {isOverdue ? 'No completada' : sMeta.label}
+                          </span>
+                          {act.deal?.title && (
+                            <span className="text-[8px] font-black text-gray-400 bg-gray-100 px-2 py-0.5 rounded-lg truncate max-w-[120px]">
+                              {act.deal.title}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[7px] text-gray-400 font-bold flex-shrink-0">{created}</span>
+                      </div>
+                      <p
+                        className="text-xs text-gray-700 font-medium leading-relaxed p-3 rounded-xl"
+                        style={{ background: isOverdue ? '#fee2e2' : sMeta.bg, color: isOverdue ? '#b91c1c' : undefined }}
+                      >
+                        {act.content}
+                      </p>
+                      <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                        {act.authorName && (
+                          <p className="text-[7px] text-gray-400 font-bold flex items-center gap-1">
+                            <User className="h-2 w-2" /> {act.authorName}
+                          </p>
+                        )}
+                        {due && (
+                          <p className="text-[7px] font-bold flex items-center gap-1" style={{ color: isOverdue ? '#ef4444' : sMeta.color }}>
+                            <Clock className="h-2 w-2" />
+                            {isOverdue ? `Venció: ${due}` : due}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SeguimientosSection({ seguimientos, loading, newSeg, setNewSeg, deals, onAdd, adding }) {
+  const [filterDealId, setFilterDealId] = React.useState('');
+  const fmtFecha = (d) => d ? new Date(d).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+
+  // Tratos que tienen al menos un seguimiento
+  const dealsWithSeg = React.useMemo(() => {
+    const ids = new Set(seguimientos.map(s => s.deal?.id).filter(Boolean));
+    return deals.filter(d => ids.has(d.id));
+  }, [seguimientos, deals]);
+
+  const filtered = filterDealId
+    ? seguimientos.filter(s => s.deal?.id === filterDealId)
+    : seguimientos;
+
+  return (
+    <div className="m-4 mb-8 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-3 px-6 py-5 border-b border-gray-100 bg-gray-50">
+        <div className="h-9 w-9 rounded-2xl bg-primary/10 flex items-center justify-center">
+          <ClipboardList className="h-4 w-4 text-primary" />
+        </div>
+        <div>
+          <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight">Seguimientos</h3>
+          <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Historial completo de actividades del vendedor</p>
+        </div>
+        <span className="ml-auto text-[10px] font-black text-gray-400 bg-white border rounded-xl px-3 py-1">
+          {filtered.length} registros
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-gray-100">
+        {/* Formulario */}
+        <form onSubmit={onAdd} className="p-6 space-y-4">
+          <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Registrar nuevo seguimiento</p>
+
+          <div className="space-y-1">
+            <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Trato *</label>
+            <select
+              required
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-xs outline-none focus:border-primary transition-colors"
+              value={newSeg.dealId}
+              onChange={e => setNewSeg(f => ({ ...f, dealId: e.target.value }))}
+            >
+              <option value="">— Seleccionar trato —</option>
+              {deals.map(d => (
+                <option key={d.id} value={d.id}>{d.title}{d.company ? ` · ${d.company}` : ''}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Fecha</label>
+            <input
+              type="date"
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-xs outline-none focus:border-primary transition-colors"
+              value={newSeg.date}
+              onChange={e => setNewSeg(f => ({ ...f, date: e.target.value }))}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Observaciones *</label>
+            <textarea
+              required
+              rows={4}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-medium text-xs outline-none focus:border-primary transition-colors resize-none"
+              placeholder="Describe las acciones realizadas, acuerdos, próximos pasos..."
+              value={newSeg.observations}
+              onChange={e => setNewSeg(f => ({ ...f, observations: e.target.value }))}
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={adding || !newSeg.dealId || !newSeg.observations.trim()}
+            className="w-full bg-gray-900 text-white py-3 rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-primary transition-all disabled:opacity-40 flex items-center justify-center gap-2"
+          >
+            {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            {adding ? 'Guardando...' : 'Registrar Seguimiento'}
+          </button>
+        </form>
+
+        {/* Tabla */}
+        <div className="lg:col-span-2 flex flex-col">
+          {/* Filtro por pipeline */}
+          <div className="px-4 pt-4 pb-2 border-b border-gray-100 flex gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setFilterDealId('')}
+              className={cn(
+                "px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest border-2 transition-all",
+                !filterDealId ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-400 hover:border-gray-300'
+              )}
+            >
+              Todos ({seguimientos.length})
+            </button>
+            {dealsWithSeg.map(d => {
+              const count = seguimientos.filter(s => s.deal?.id === d.id).length;
+              return (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => setFilterDealId(d.id)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest border-2 transition-all max-w-[180px] truncate",
+                    filterDealId === d.id ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 text-gray-400 hover:border-gray-300'
+                  )}
+                  title={d.title}
+                >
+                  {d.title} <span className="opacity-60">({count})</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="overflow-x-auto flex-1">
+            {loading ? (
+              <div className="flex items-center justify-center h-40 gap-2 text-gray-400">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span className="text-[10px] font-black uppercase tracking-widest">Cargando...</span>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-40 gap-2 text-gray-300">
+                <ClipboardList className="h-8 w-8" />
+                <p className="text-[9px] font-black uppercase tracking-widest">
+                  {filterDealId ? 'Sin seguimientos para este trato' : 'Sin seguimientos registrados'}
+                </p>
+              </div>
+            ) : (
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50/50">
+                    <th className="px-4 py-3 text-[8px] font-black text-gray-400 uppercase tracking-widest w-12">
+                      <Hash className="h-3 w-3" />
+                    </th>
+                    <th className="px-4 py-3 text-[8px] font-black text-gray-400 uppercase tracking-widest">Fecha</th>
+                    <th className="px-4 py-3 text-[8px] font-black text-gray-400 uppercase tracking-widest">Tipo</th>
+                    {!filterDealId && <th className="px-4 py-3 text-[8px] font-black text-gray-400 uppercase tracking-widest">Trato</th>}
+                    <th className="px-4 py-3 text-[8px] font-black text-gray-400 uppercase tracking-widest">Observaciones</th>
+                    <th className="px-4 py-3 text-[8px] font-black text-gray-400 uppercase tracking-widest">Vendedor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((seg, i) => (
+                    <tr key={seg.id} className="border-b border-gray-50 hover:bg-gray-50/60 transition-colors">
+                      <td className="px-4 py-3">
+                        <span className="h-6 w-6 rounded-lg bg-primary/10 text-primary font-black text-[9px] flex items-center justify-center">
+                          {filtered.length - i}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-[10px] font-bold text-gray-500 whitespace-nowrap">
+                        {fmtFecha(seg.dueDate || seg.createdAt)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {(() => { const m = TIPO_META[seg.type] || { label: seg.type, color: 'bg-gray-100 text-gray-500' }; return (
+                          <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${m.color}`}>{m.label}</span>
+                        ); })()}
+                      </td>
+                      {!filterDealId && (
+                        <td className="px-4 py-3">
+                          <p className="text-[10px] font-black text-gray-800 leading-tight">{seg.deal?.title || '—'}</p>
+                          {seg.deal?.company && (
+                            <p className="text-[8px] font-bold text-gray-400">{seg.deal.company}</p>
+                          )}
+                        </td>
+                      )}
+                      <td className="px-4 py-3 max-w-xs">
+                        <p className="text-[10px] font-medium text-gray-700 leading-relaxed line-clamp-2">{seg.content}</p>
+                      </td>
+                      <td className="px-4 py-3 text-[9px] font-bold text-gray-500 whitespace-nowrap">
+                        {seg.authorName || '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

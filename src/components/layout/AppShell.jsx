@@ -4,7 +4,7 @@ import {
   LayoutDashboard, ClipboardList, Receipt, Users, GraduationCap,
   Briefcase, Menu, X, LogOut, Bell, ChevronDown, Trophy, User as UserIcon,
   BarChart3, Wallet, Target, Users2, FileText, Sliders, TrendingUp,
-  Database, Settings, BarChart4, BookOpen, Calendar
+  Database, Settings, BarChart4, BookOpen, Calendar, Package
 } from 'lucide-react';
 import { useAuth, ROLES } from '@/store/AuthContext';
 import { useTenant } from '@/store/TenantContext';
@@ -46,6 +46,7 @@ const NAV_STRUCTURE = [
       { name: 'Cotizaciones',       path: '/crm/quotes',     icon: FileText,   roles: [ROLES.SALES] },
       { name: 'Métricas Ventas',    path: '/sales/metricas', icon: TrendingUp, roles: [ROLES.SALES] },
       { name: 'Gestión de Datos',   path: '/sales/datos',    icon: Database,   roles: [ROLES.SALES] },
+      { name: 'Catálogo Productos', path: '/crm/catalog',    icon: Package,    roles: [ROLES.SALES] },
       { name: 'Config. Pipeline',   path: '/crm/settings',   icon: Sliders,    roles: [ROLES.SALES] },
     ]
   },

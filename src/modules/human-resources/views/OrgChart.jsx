@@ -104,11 +104,20 @@ export default function OrgChart() {
           >
             <div className="flex items-center gap-3">
               <div className="relative shrink-0">
-                <img 
-                  src={node.avatar} 
-                  alt={node.name} 
-                  className="h-10 w-10 rounded-xl object-cover border border-gray-100" 
-                />
+                {node.avatar ? (
+                  <img
+                    src={node.avatar}
+                    alt={node.name}
+                    className="h-10 w-10 rounded-xl object-cover border border-gray-100"
+                  />
+                ) : (
+                  <div className="h-10 w-10 rounded-xl border border-gray-100 flex items-center justify-center"
+                    style={{ background: level === 0 ? 'rgba(255,255,255,0.15)' : '#f1f5f9' }}>
+                    <span style={{ fontSize: 15, fontWeight: 900, color: level === 0 ? '#fff' : '#475569' }}>
+                      {(node.name || '?').charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
                 <div 
                   style={{ 
                     backgroundColor: node.status === 'ACTIVE' ? '#10b981' : '#f59e0b',

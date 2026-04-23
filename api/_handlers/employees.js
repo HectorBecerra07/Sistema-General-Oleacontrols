@@ -76,7 +76,8 @@ export default async function handler(req, res) {
             department: true,
             status: true,
             location: true,
-            phone: true
+            phone: true,
+            reportsTo: true,
         }
       });
 

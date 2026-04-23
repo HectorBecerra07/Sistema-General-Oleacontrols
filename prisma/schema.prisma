@@ -604,6 +604,23 @@ model SalesPortfolio {
   updatedAt        DateTime @updatedAt
 }
 
+// --- CATÁLOGO DE PRODUCTOS (base para cotizaciones) ---
+model Product {
+  id          String   @id @default(cuid())
+  sku         String   @unique
+  name        String
+  brand       String?
+  category    String?
+  subcategory String?
+  description String?
+  unit        String   @default("PZA") // PZA, KIT, MTS, JGO, SRV
+  price       Float    @default(0)
+  currency    String   @default("MXN") // MXN, USD
+  status      String   @default("ACTIVE") // ACTIVE, INACTIVE
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 // --- PLANTILLAS OT (Catálogo de tipos de servicio para agilizar la creación de OTs) ---
 model OTTemplate {
   id              String   @id @default(cuid())
